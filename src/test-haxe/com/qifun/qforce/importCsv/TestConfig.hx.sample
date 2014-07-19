@@ -1,0 +1,63 @@
+package com.qifun.qforce.importCsv;
+
+class TestConfig
+{
+
+  public static var Foo(default, never) = new Foo();
+
+  @:extern
+  public static inline function Bar(i:Int) return new Bar();
+
+}
+
+@:allow(com.qifun.qforce.importCsv.TestConfig)
+private class TestConfig_Item
+{
+  function new() { }
+
+  @:protected
+  inline function Bar(i:Int):Bar return TestConfig.Bar(i);
+
+  @:protected
+  inline function get_Foo():Foo return TestConfig.Foo;
+
+  var Foo(get, never):Foo;
+
+}
+
+class Sheet1 extends TestConfig_Item
+{
+
+  var xx:Int = 0;
+	function xxx(bar:Int):Int
+  {
+    // 默认值
+    return 0;
+  }
+	var s:String;
+
+}
+
+
+@:allow(com.qifun.qforce.importCsv.TestConfig)
+class Foo extends Sheet1
+{
+
+  public function xxxx()
+  {
+    var foo:Foo = Foo;
+    var bar:Bar = Bar(1);
+  };
+
+}
+
+
+@:allow(com.qifun.qforce.importCsv.TestConfig)
+class Bar extends Sheet1
+{
+
+  function ttt(i:Int)
+  {
+  };
+
+}
