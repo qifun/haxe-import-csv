@@ -1,4 +1,5 @@
-package com.qifun.qforce.importCsv ;
+package com.qifun.qforce.importCsv;
+
 
 import com.dongxiguo.continuation.Continuation;
 import com.dongxiguo.continuation.utils.Generator;
@@ -12,28 +13,9 @@ import haxe.zip.Entry;
 import haxe.zip.Reader;
 import haxe.macro.*;
 import haxe.zip.Uncompress;
-import sys.FileSystem;
-import sys.io.File;
-import sys.io.FileInput;
 using StringTools;
-
-
-@:final
-private class WorkbookModule
-{
-  public function new() { }
-  public var mainTypeDefinition:TypeDefinition;
-  public var itemTypeDefinition:TypeDefinition;
-  public var otherTypeDefinitions:Array<TypeDefinition>;
-}
-
-@:final
-private class ExpectMetaOrItemId extends ImporterError
-{
-
-  override function get_message() return "Expected `@meta` or `ItemId`";
-
-}
+using Lambda;
+using com.qifun.qforce.importCsv.Translation;
 
 class ImporterError
 {
@@ -46,17 +28,64 @@ class ImporterError
   {
     this.min = min;
     this.max = max;
-    #if macro
-    // Workaround for https://github.com/HaxeFoundation/haxe/issues/3188
-    this.file = sys.FileSystem.fullPath(file);
-    #else
     this.file = file;
-    #end
   }
 
   public var message(get, never):String;
 
   function get_message() return "Import parsed CSV failed";
+
+}
+
+private class UnexpectedVarInitializer extends ImporterError
+{
+
+  override function get_message() return
+  {
+    Translation.translate("The var definition in first row must not include a initializer");
+  }
+
+}
+
+private class UnexpectedAccess extends ImporterError
+{
+
+  override function get_message() return
+  {
+    Translation.translate("Unexpected access");
+  }
+
+}
+
+private class UnexpectedFunctionBody extends ImporterError
+{
+
+  override function get_message() return
+  {
+    Translation.translate("The function definition in first row must not include a function body");
+  }
+
+}
+
+private class PropertyIsNotSupported extends ImporterError
+{
+
+  override function get_message() return Translation.translate("Property is not supported");
+
+}
+
+private class ExpectField extends ImporterError
+{
+
+  override function get_message() return Translation.translate("Expected `function` or `var`");
+
+}
+
+@:final
+private class ExpectMetaOrItemId extends ImporterError
+{
+
+  override function get_message() return Translation.translate("Expected `@meta` or `ItemId`");
 
 }
 
@@ -82,7 +111,7 @@ class Importer
       for (csvFilePath in csvFilePaths)
       {
         var resolvedPath = Context.resolvePath(csvFilePath);
-        var input = File.read(resolvedPath);
+        var input = sys.io.File.read(resolvedPath);
         var data = try
         {
           CsvParser.parseInput(input);
@@ -131,34 +160,86 @@ class Importer
     }
     catch (e:ImporterError)
     {
-      //Context.error(
-			//"xxx",
-			//Context.makePosition(
-				//{
-					////file: "src/test-haxe/com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv",
-          ////file: "D:\\Documents\\xlsx-to-sample\\haxe-import-csv\\src\\test-haxe\\com\\qifun\\qforce\\importCsv\\TestConfig.xlsx.Sheet1.utf-8.csv",
-					////file: "D:/Documents/xlsx-to-sample/haxe-import-csv/src/test-haxe/com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv",
-					////file: "src/../src/test-haxe/com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv",
-					//min: 93,
-					//max: 101,
-				//}));
-      //trace(PositionTools.getInfos(e.position));
       Context.error(e.message, PositionTools.make(e));
     }
 
     for (moduleDefinition in moduleDefinitions)
     {
+      for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
       Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types);
     }
   }
 
-  static function parseHaxe(code:String, position:Position):Expr return
+  static function parseInlineHaxe(code:String, position:Position):Expr return
   {
     #if macro
       Context.parseInlineString(code, position);
     #else
       throw "TODO: 不在宏中时，应使用 https://github.com/Simn/haxeparser";
     #end
+  }
+
+  static function parseHaxe(code:String, position:Position):Expr return
+  {
+    #if macro
+      Context.parse(code, position);
+    #else
+      throw "TODO: 不在宏中时，应使用 https://github.com/Simn/haxeparser";
+    #end
+  }
+
+  static function parseHead(
+    content:String,
+    fileName:String,
+    positionMin:Int,
+    positionMax:Int):Field return
+  {
+    var expr = parseHaxe('var _:{$content\n}', PositionTools.make(
+      {
+        min: positionMin,
+        max: positionMax,
+        file: fileName,
+      }));
+    switch (expr)
+    {
+      case
+      {
+        pos: _,
+        expr: EVars(
+          [
+            {
+              name: "_",
+              expr: null,
+              type: TAnonymous([ ]),
+            }
+          ]),
+      }:
+      {
+        null;
+      }
+      case
+      {
+        pos: _,
+        expr: EVars(
+          [
+            {
+              name: "_",
+              expr: null,
+              type: TAnonymous([ field ]),
+            }
+          ])
+      }:
+      {
+        field;
+      }
+      case { pos: PositionTools.getInfos(_) => p } :
+      {
+        throw new ExpectField(
+          Std.int(Math.max(p.min, positionMin)),
+          Std.int(Math.min(p.max, positionMax)),
+          fileName);
+      }
+    }
   }
 
   static function parseItemId(
@@ -168,14 +249,13 @@ class Importer
     positionMax:Int,
     classMeta:Metadata):Null<String> return
   {
-    var itemIdCodeSuffix = "\n-importCsvPlaceholder";
-    var expr0 = parseHaxe('${content}$itemIdCodeSuffix', PositionTools.make(
+    var expr0 = parseInlineHaxe('$content\n-_', PositionTools.make(
       {
         min: positionMin,
         max: positionMax,
         file: fileName,
       }));
-    function parseItemIdExpr(expr0:Expr):String return
+    function extractItemId(expr0:Expr):String return
     {
       switch (expr0)
       {
@@ -186,7 +266,7 @@ class Importer
         case { pos: _, expr: EMeta(s, e) } :
         {
           classMeta.push(s);
-          parseItemIdExpr(e);
+          extractItemId(e);
         }
         case { pos: PositionTools.getInfos(_) => p } :
         {
@@ -199,11 +279,11 @@ class Importer
     }
     switch (expr0)
     {
-      case { pos: _, expr: EBinop(Binop.OpSub, idOrMeta, { pos: _, expr: EConst(CIdent("importCsvPlaceholder")) } ) }:
+      case { pos: _, expr: EBinop(Binop.OpSub, idOrMeta, { pos: _, expr: EConst(CIdent("_")) } ) }:
       {
-        parseItemIdExpr(idOrMeta);
+        extractItemId(idOrMeta);
       }
-      case { pos: _, expr: EUnop(Unop.OpNeg, false, { pos: _, expr: EConst(CIdent("importCsvPlaceholder")) } ) }:
+      case { pos: _, expr: EUnop(Unop.OpNeg, false, { pos: _, expr: EConst(CIdent("_")) } ) }:
       {
         null;
       }
@@ -216,6 +296,13 @@ class Importer
       }
     }
   }
+
+
+  static function commentBuilder(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
+  {
+    // 配置表中的这一列是注释，不生成代码。
+  }
+
   public static function buildModuleDefinitions(csvEntries:Iterable <
     {
       var fileName(default, never):String;
@@ -229,13 +316,14 @@ class Importer
       var types(default, never):Array<TypeDefinition>;
     }> return
   {
-    var workbookModules = new StringMap<WorkbookModule>();
+    var workbookModules = new StringMap<Array<TypeDefinition>>();
     for (csvEntry in csvEntries)
     {
+      var csvFileName = csvEntry.fileName;
       var workbookName = csvEntry.workbookName;
       var worksheetName = csvEntry.worksheetName;
       var pack = csvEntry.pack;
-      var itemClassName = workbookName + "_Item";
+      var baseItemClassName = workbookName + "_Item";
       var moduleExpr = switch (MacroStringTools.toFieldExpr(pack))
       {
         case null:
@@ -255,35 +343,34 @@ class Importer
       }
       else
       {
-        var workbookModule = new WorkbookModule();
-        workbookModule.otherTypeDefinitions = [];
-        workbookModule.mainTypeDefinition =
+        var workbookModule:Array<TypeDefinition> = [];
+        workbookModule.push(
         {
           name: workbookName,
           pack: pack,
-          pos: ExprTools.makeMacroPosition(),
+          pos: PositionTools.here(),
           kind: TDClass(),
           fields: [],
-        }
-        workbookModule.itemTypeDefinition =
+        });
+        workbookModule.push(
         {
-          name: itemClassName,
+          name: baseItemClassName,
           pack: pack,
-          pos: ExprTools.makeMacroPosition(),
+          pos: PositionTools.here(),
           kind: TDClass(),
           meta:
           [
             {
               name: ":allow",
               params: [ moduleExpr ],
-              pos: ExprTools.makeMacroPosition(),
+              pos: PositionTools.here(),
             }
           ],
           fields:
           [
             {
               name: "new",
-              pos: ExprTools.makeMacroPosition(),
+              pos: PositionTools.here(),
               access: [ APrivate, AInline ],
               kind: FFun(
                 {
@@ -293,37 +380,180 @@ class Importer
                 }),
             }
           ],
-        }
+        });
         workbookModules.set(fullModuleName, workbookModule);
         workbookModule;
       }
 
-      workbookModule.otherTypeDefinitions.push(
-        {
-          name: worksheetName,
-          pack: pack,
-          pos: ExprTools.makeMacroPosition(),
-          kind: TDClass(
-            {
-              name: workbookName,
-              pack: pack,
-              sub: itemClassName,
-            }),
-          fields:
-          [
-
-          ]
-        });
+      function getPosition(cell:CsvCell):Position return
+      {
+        PositionTools.make(
+          {
+            min: cell.positionMin,
+            max: cell.positionMax,
+            file: csvFileName,
+          });
+      }
 
       var typeDefinition = null;
       var csvData = csvEntry.data;
       var headRow = csvData[0];
       var numColumnsRequired = headRow.length;
-
-      for (y in 1...csvData.length)
+      var fieldBuilders = [];
+      for (x in 2...numColumnsRequired)
       {
-        var row = csvData[y];
-        var numColumns = row.length;
+        var headCell = headRow[x];
+        var sourceField = parseHead(headCell.content, csvFileName, headCell.positionMin, headCell.positionMax);
+        if (sourceField == null)
+        {
+          fieldBuilders[x - 2] = commentBuilder;
+        }
+        else
+        {
+          fieldBuilders[x - 2] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
+          {
+            var cellExpr = switch (cell.content)
+            {
+              case null, "" if (!isDefaultItem):
+              {
+                // 无需设置，使用默认值即可
+                return;
+              }
+              case null, "":
+              {
+                macro cast null;
+              }
+              case fieldBody:
+              {
+                parseHaxe(fieldBody, getPosition(cell));
+              }
+            }
+            var newAccess = switch (sourceField.access)
+            {
+              case originalAccess if (originalAccess.foreach(function(a) return a.match(APrivate | AInline))):
+              {
+                var newAccess = originalAccess.copy();
+                if (!isDefaultItem)
+                {
+                  newAccess.push(AOverride);
+                }
+                if (!originalAccess.exists(function(a) return a.match(APrivate)))
+                {
+                  newAccess.push(APublic);
+                }
+                newAccess;
+              }
+              default:
+              {
+                var p = PositionTools.getInfos(sourceField.pos);
+                throw new UnexpectedAccess(p.min, p.max, p.file);
+              }
+            }
+            switch (sourceField.kind)
+            {
+              case FFun( { expr: null, args: args, ret: ret, params: null } ):
+              {
+                fieldOutput.push(
+                  {
+                    name: sourceField.name,
+                    doc: sourceField.doc,
+                    access: newAccess,
+                    pos: sourceField.pos,
+                    meta: sourceField.meta,
+                    kind: FFun(
+                      {
+                        args: args,
+                        ret: ret,
+                        expr: macro return $cellExpr,
+                      })
+                  });
+              }
+              case FFun( { expr: { pos: pos } } ):
+              {
+                var p = PositionTools.getInfos(pos);
+                throw new UnexpectedFunctionBody(p.min, p.max, p.file);
+              }
+              case FVar(t, null):
+              {
+                var fieldName = sourceField.name;
+                var underlyingFieldName = '_$fieldName';
+                if (isDefaultItem)
+                {
+                  fieldOutput.push(
+                    {
+                      name: fieldName,
+                      doc: sourceField.doc,
+                      access: newAccess,
+                      pos: sourceField.pos,
+                      meta: sourceField.meta,
+                      kind: FProp(
+                        "get",
+                        "never",
+                        t)
+                    });
+                  fieldOutput.push(
+                    {
+                      name: underlyingFieldName,
+                      doc: sourceField.doc,
+                      access: newAccess,
+                      pos: sourceField.pos,
+                      meta: sourceField.meta.concat([ { pos: sourceField.pos, name: ":protected" } ]),
+                      kind: FVar(
+                        TPath(
+                          {
+                            name: "Null",
+                            pack: [ ],
+                            params: [ TPType(t) ],
+                          }))
+                    });
+                }
+                fieldOutput.push(
+                  {
+                    name: 'get_$fieldName',
+                    doc: sourceField.doc,
+                    access: newAccess,
+                    pos: sourceField.pos,
+                    meta: sourceField.meta.concat(
+                      [
+                        {
+                          pos: sourceField.pos,
+                          name: ":native",
+                          params: [ { pos: sourceField.pos, expr: EConst(CString(fieldName)),  } ],
+                        }
+                      ]),
+                    kind: FFun(
+                      {
+                        args: [],
+                        ret: t,
+                        expr: macro return
+                        {
+                          if ($i{underlyingFieldName} == null)
+                          {
+                            $i{underlyingFieldName} = $cellExpr;
+                          }
+                          $i{underlyingFieldName};
+                        },
+                      }),
+                  });
+              }
+              case FVar(_, { pos: pos }):
+              {
+                var p = PositionTools.getInfos(pos);
+                throw new UnexpectedVarInitializer(p.min, p.max, p.file);
+              }
+              case FProp(_, _, _, _):
+              {
+                var p = PositionTools.getInfos(sourceField.pos);
+                throw new PropertyIsNotSupported(p.min, p.max, p.file);
+              }
+            }
+          }
+        }
+      }
+      var hasCustomBaseClass = false;
+      function buildItemDefinition(row:Null<CsvRow>):Null<TypeDefinition> return
+      {
+        var numColumns = row == null ? 0 : row.length;
         var defaultCell = null;
         function getCell(x:Int):CsvCell return
         {
@@ -340,26 +570,76 @@ class Importer
             defaultCell =
             {
               content: "",
-              positionMin: row[numColumns - 1].positionMax,
-              positionMax: row[numColumns - 1].positionMax,
+              positionMin: row == null ? 0 : row[numColumns - 1].positionMin,
+              positionMax: row == null ? 0 : row[numColumns - 1].positionMax,
             }
           }
         }
-        var cell1 = getCell(1);
-        var classMeta = [];
         var cell0 = getCell(0);
-        var itemId = parseItemId(cell0.content, csvEntry.fileName, cell0.positionMin, cell0.positionMax, classMeta);
+        var classMeta = [];
+        var itemId = if (row == null)
+        {
+          worksheetName;
+        }
+        else
+        {
+          parseItemId(cell0.content, csvFileName, cell0.positionMin, cell0.positionMax, classMeta);
+        }
+        if (itemId == null)
+        {
+          return null;
+        }
+        var isDefaultItem = itemId == worksheetName;
+        if (isDefaultItem)
+        {
+          hasCustomBaseClass = true;
+        }
+
+        var cell1 = getCell(1); //  TODO: 参数
+
+        var fields = [];
+        for (i in 0...fieldBuilders.length)
+        {
+          var x = i + 2;
+          fieldBuilders[i](getCell(x), isDefaultItem, fields);
+        }
+        var pos0 = getPosition(cell0);
+        if (isDefaultItem)
+        {
+          classMeta.push({ name: ":bridgeProperties", pos: pos0 });
+        }
+        {
+          pack: pack,
+          name: itemId,
+          pos: pos0,
+          meta: classMeta,
+          kind: TDClass(
+            {
+              pack: pack,
+              name: workbookName,
+              sub: isDefaultItem ? baseItemClassName : worksheetName,
+            }),
+          fields: fields,
+        }
       }
 
-      //Context.makePosition(
-      trace(parseHaxe("//\n-1", ExprTools.makeMacroPosition()));
+      for (y in 1...csvData.length)
+      {
+        switch (buildItemDefinition(csvData[y]))
+        {
+          case null: // 被忽略的注释行
+          case itemDefinition:
+          {
+            workbookModule.push(itemDefinition);
+          }
+        }
+      }
 
-      //trace(parseHaxe("@xx @xx importCsvPlaceholder", ExprTools.makeMacroPosition()));
-      //parseHaxe("var importCsvPlaceholder:{ a:Int }", ExprTools.makeMacroPosition());
-      //parseHaxe("var importCsvPlaceholder:{ \nfunction1 a():Int\n }", ExprTools.makeMacroPosition());
-      // TODO，把工作表加入
+      if (!hasCustomBaseClass)
+      {
+        workbookModule.push(buildItemDefinition(null));
+      }
     }
-
 
     [
       for (fullModuleName in workbookModules.keys())
@@ -367,14 +647,12 @@ class Importer
         var workbookModule = workbookModules.get(fullModuleName);
         {
           modulePath: fullModuleName,
-          types: workbookModule.otherTypeDefinitions.concat(
-            [
-              workbookModule.itemTypeDefinition,
-              workbookModule.mainTypeDefinition,
-            ]),
+          types: workbookModules.get(fullModuleName),
         }
       }
     ];
   }
 
 }
+
+// vim: et sts=2 sw=2

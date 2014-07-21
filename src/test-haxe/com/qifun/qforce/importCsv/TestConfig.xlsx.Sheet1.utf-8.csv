@@ -1,5 +1,2 @@
-1,,var xx:Int;,function xxx(bar:Int):Int;,var s:String;
-aaaaaaa,3,
-aaaaaaa,3,
-aaaaaaa,3,
-A13444426,Foo,"1  222   3"
+﻿,,var xx:Int;,function xxx(bar:Int):Int;,var s:String;
+Foo,,3,3,"""中文"""

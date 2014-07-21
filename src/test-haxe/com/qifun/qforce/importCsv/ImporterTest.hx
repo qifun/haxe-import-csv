@@ -7,7 +7,7 @@ class ImporterTest
 
 	public static function main()
 	{
-
+    Translation.translate('xx');
 	}
 }
 

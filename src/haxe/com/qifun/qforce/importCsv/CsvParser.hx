@@ -247,7 +247,15 @@ class CsvParser
     var result:CsvTable = [];
     while (true)
     {
-      result.push(try parseRow(input) catch (e:Eof) return result);
+      var row = try
+      {
+        parseRow(input);
+      }
+      catch (e:Eof)
+      {
+        return result;
+      }
+      result.push(row);
     }
     throw "Unreachable code!";
   }
