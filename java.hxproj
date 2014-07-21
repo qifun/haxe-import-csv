@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project version="2">
+  <!-- Output SWF options -->
+  <output>
+    <movie outputType="Application" />
+    <movie input="" />
+    <movie path="bin\java" />
+    <movie fps="30" />
+    <movie width="800" />
+    <movie height="600" />
+    <movie version="1" />
+    <movie minorVersion="0" />
+    <movie platform="Java" />
+    <movie background="#FFFFFF" />
+  </output>
+  <!-- Other classes to be compiled into your SWF -->
+  <classpaths>
+    <class path="src\haxe" />
+    <class path="src\test-haxe" />
+    <class path="target\scala-2.11\src_managed\test-haxe" />
+  </classpaths>
+  <!-- Build options -->
+  <build>
+    <option directives="locale=zh_CN.GBK" />
+    <option flashStrict="False" />
+    <option noInlineOnDebug="False" />
+    <option mainClass="com.qifun.qforce.importCsv.ImporterTest" />
+    <option enabledebug="False" />
+    <option additional="--macro com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv'])" />
+  </build>
+  <!-- haxelib libraries -->
+  <haxelib>
+    <library name="continuation" />
+  </haxelib>
+  <!-- Class files to compile (other referenced classes will automatically be included) -->
+  <compileTargets>
+    <compile path="haxelib-release\com\qifun\qforce\xlsx\Importer.hx" />
+    <compile path="src\haxe-test\com\qifun\qforce\xlsx\ImporterTest.hx" />
+    <compile path="src\test-haxe\com\qifun\qforce\importCsv\ImporterTest.hx" />
+  </compileTargets>
+  <!-- Paths to exclude from the Project Explorer tree -->
+  <hiddenPaths>
+    <hidden path="obj" />
+  </hiddenPaths>
+  <!-- Executed before build -->
+  <preBuildCommand />
+  <!-- Executed after build -->
+  <postBuildCommand alwaysRun="False" />
+  <!-- Other project options -->
+  <options>
+    <option showHiddenPaths="False" />
+    <option testMovie="Unknown" />
+    <option testMovieCommand="" />
+  </options>
+  <!-- Plugin storage -->
+  <storage />
+</project>
