@@ -1,0 +1,26 @@
+[
+  {
+    "source": "Unexpected access",
+    "translated": "不支持的修饰符"
+  },
+  {
+    "source": "Expected `@meta` or `ItemId`",
+    "translated": "需要`@meta`或`ItemId`"
+  },
+  {
+    "source": "Expected `function` or `var`",
+    "translated": "需要`function`或`var`"
+  },
+  {
+    "source": "Property is not supported",
+    "translated": "不支持属性"
+  },
+  {
+    "source": "The function definition in first row must not include a function body",
+    "translated": "表格第一行中的函数定义不得包含函数体"
+  },
+  {
+    "source": "The var definition in first row must not include a initializer",
+    "translated": "表格第一行中的变量定义不得包含初始值"
+  }
+]

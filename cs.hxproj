@@ -4,13 +4,13 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="bin\java" />
+    <movie path="bin\cs" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
     <movie version="1" />
     <movie minorVersion="0" />
-    <movie platform="Java" />
+    <movie platform="C#" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
@@ -21,12 +21,12 @@
   </classpaths>
   <!-- Build options -->
   <build>
-    <option directives="locale=zh_CN.GBK&#xA;scala_properties" />
+    <option directives="locale=zh_CN.GBK" />
     <option flashStrict="False" />
     <option noInlineOnDebug="False" />
     <option mainClass="com.qifun.qforce.importCsv.ImporterTest" />
     <option enabledebug="False" />
-    <option additional="--macro &quot;haxe.locale.Translator.addTranslationFile('zh_CN.GBK','com/qifun/qforce/importCsv/translation.zh_CN.GBK.json')&quot;&#xA;--macro com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv'])" />
+    <option additional="--macro com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet1.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv'])" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>

@@ -1,6 +1,5 @@
 package com.qifun.qforce.importCsv;
 
-
 import com.dongxiguo.continuation.Continuation;
 import com.dongxiguo.continuation.utils.Generator;
 import com.qifun.qforce.importCsv.CsvParser;
@@ -15,7 +14,7 @@ import haxe.macro.*;
 import haxe.zip.Uncompress;
 using StringTools;
 using Lambda;
-using com.qifun.qforce.importCsv.Translation;
+using haxe.locale.Translator;
 
 class ImporterError
 {
@@ -42,7 +41,7 @@ private class UnexpectedVarInitializer extends ImporterError
 
   override function get_message() return
   {
-    Translation.translate("The var definition in first row must not include a initializer");
+    Translator.translate("The var definition in first row must not include a initializer");
   }
 
 }
@@ -52,7 +51,7 @@ private class UnexpectedAccess extends ImporterError
 
   override function get_message() return
   {
-    Translation.translate("Unexpected access");
+    Translator.translate("Unexpected access");
   }
 
 }
@@ -62,7 +61,7 @@ private class UnexpectedFunctionBody extends ImporterError
 
   override function get_message() return
   {
-    Translation.translate("The function definition in first row must not include a function body");
+    Translator.translate("The function definition in first row must not include a function body");
   }
 
 }
@@ -70,14 +69,14 @@ private class UnexpectedFunctionBody extends ImporterError
 private class PropertyIsNotSupported extends ImporterError
 {
 
-  override function get_message() return Translation.translate("Property is not supported");
+  override function get_message() return Translator.translate("Property is not supported");
 
 }
 
 private class ExpectField extends ImporterError
 {
 
-  override function get_message() return Translation.translate("Expected `function` or `var`");
+  override function get_message() return Translator.translate("Expected `function` or `var`");
 
 }
 
@@ -85,7 +84,7 @@ private class ExpectField extends ImporterError
 private class ExpectMetaOrItemId extends ImporterError
 {
 
-  override function get_message() return Translation.translate("Expected `@meta` or `ItemId`");
+  override function get_message() return Translator.translate("Expected `@meta` or `ItemId`");
 
 }
 
@@ -165,7 +164,7 @@ class Importer
 
     for (moduleDefinition in moduleDefinitions)
     {
-      for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
+      //for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
       Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types);
     }
   }
@@ -297,11 +296,7 @@ class Importer
     }
   }
 
-
-  static function commentBuilder(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
-  {
-    // 配置表中的这一列是注释，不生成代码。
-  }
+  static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
   public static function buildModuleDefinitions(csvEntries:Iterable <
     {
@@ -323,7 +318,9 @@ class Importer
       var workbookName = csvEntry.workbookName;
       var worksheetName = csvEntry.worksheetName;
       var pack = csvEntry.pack;
-      var baseItemClassName = workbookName + "_Item";
+      var baseClassName = workbookName + "_Base";
+      var externalBridgeClassName = worksheetName + "_ExternalBridge";
+      var bridgeClassName = worksheetName + "_Bridge";
       var moduleExpr = switch (MacroStringTools.toFieldExpr(pack))
       {
         case null:
@@ -351,15 +348,26 @@ class Importer
           pos: PositionTools.here(),
           kind: TDClass(),
           fields: [],
+          meta:
+          [
+            {
+              name: ":nativeGen",
+              pos: PositionTools.here(),
+            }
+          ]
         });
         workbookModule.push(
         {
-          name: baseItemClassName,
+          name: baseClassName,
           pack: pack,
           pos: PositionTools.here(),
           kind: TDClass(),
           meta:
           [
+            {
+              name: ":nativeGen",
+              pos: PositionTools.here(),
+            },
             {
               name: ":allow",
               params: [ moduleExpr ],
@@ -398,19 +406,69 @@ class Importer
       var typeDefinition = null;
       var csvData = csvEntry.data;
       var headRow = csvData[0];
+      var headPos = getPosition(headRow[0]);
       var numColumnsRequired = headRow.length;
       var fieldBuilders = [];
+      var externalBridgeFields:Array<Field> = [];
+      var bridgeFields:Array<Field> = [];
       for (x in 2...numColumnsRequired)
       {
+        var builderIndex = x - 2;
         var headCell = headRow[x];
+        var headCellPos = getPosition(headCell);
         var sourceField = parseHead(headCell.content, csvFileName, headCell.positionMin, headCell.positionMax);
         if (sourceField == null)
         {
-          fieldBuilders[x - 2] = commentBuilder;
+          fieldBuilders[builderIndex] = DUMMY_FUNCTION;
         }
         else
         {
-          fieldBuilders[x - 2] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
+          switch (sourceField.kind)
+          {
+            case FVar(t, null):
+            {
+              var fieldName = sourceField.name;
+              var getterName = 'get_$fieldName';
+              externalBridgeFields.push(
+                {
+                  pos: headCellPos,
+                  name: getterName,
+                  kind: FFun(
+                    {
+                      args: [],
+                      ret: t,
+                      expr: null,
+                    }),
+                });
+              bridgeFields.push(
+                {
+                  pos: headCellPos,
+                  name: getterName,
+                  kind: FFun(
+                    {
+                      args: [],
+                      ret: t,
+                      expr: macro return throw "Not implemented!",
+                    }),
+                });
+              bridgeFields.push(
+                {
+                  pos: headCellPos,
+                  name: fieldName,
+                  kind: FFun(
+                    {
+                      args: [],
+                      ret: t,
+                      expr: macro return this.$getterName(),
+                    }),
+                });
+            }
+            default:
+            {
+              // 无需生成桥接代码
+            }
+          }
+          fieldBuilders[builderIndex] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
           {
             var cellExpr = switch (cell.content)
             {
@@ -433,10 +491,6 @@ class Importer
               case originalAccess if (originalAccess.foreach(function(a) return a.match(APrivate | AInline))):
               {
                 var newAccess = originalAccess.copy();
-                if (!isDefaultItem)
-                {
-                  newAccess.push(AOverride);
-                }
                 if (!originalAccess.exists(function(a) return a.match(APrivate)))
                 {
                   newAccess.push(APublic);
@@ -457,7 +511,7 @@ class Importer
                   {
                     name: sourceField.name,
                     doc: sourceField.doc,
-                    access: newAccess,
+                    access: [ ],
                     pos: sourceField.pos,
                     meta: sourceField.meta,
                     kind: FFun(
@@ -495,7 +549,7 @@ class Importer
                     {
                       name: underlyingFieldName,
                       doc: sourceField.doc,
-                      access: newAccess,
+                      access: [ ],
                       pos: sourceField.pos,
                       meta: sourceField.meta.concat([ { pos: sourceField.pos, name: ":protected" } ]),
                       kind: FVar(
@@ -511,16 +565,9 @@ class Importer
                   {
                     name: 'get_$fieldName',
                     doc: sourceField.doc,
-                    access: newAccess,
+                    access: [ AOverride ],
                     pos: sourceField.pos,
-                    meta: sourceField.meta.concat(
-                      [
-                        {
-                          pos: sourceField.pos,
-                          name: ":native",
-                          params: [ { pos: sourceField.pos, expr: EConst(CString(fieldName)),  } ],
-                        }
-                      ]),
+                    meta: sourceField.meta,
                     kind: FFun(
                       {
                         args: [],
@@ -551,7 +598,7 @@ class Importer
         }
       }
       var hasCustomBaseClass = false;
-      function buildItemDefinition(row:Null<CsvRow>):Null<TypeDefinition> return
+      function buildRow(row:Null<CsvRow>):Void
       {
         var numColumns = row == null ? 0 : row.length;
         var defaultCell = null;
@@ -587,7 +634,7 @@ class Importer
         }
         if (itemId == null)
         {
-          return null;
+          return;
         }
         var isDefaultItem = itemId == worksheetName;
         if (isDefaultItem)
@@ -608,37 +655,96 @@ class Importer
         {
           classMeta.push({ name: ":bridgeProperties", pos: pos0 });
         }
-        {
-          pack: pack,
-          name: itemId,
-          pos: pos0,
-          meta: classMeta,
-          kind: TDClass(
-            {
-              pack: pack,
-              name: workbookName,
-              sub: isDefaultItem ? baseItemClassName : worksheetName,
-            }),
-          fields: fields,
-        }
+        classMeta.push(
+          {
+            name: ":nativeGen",
+            pos: pos0,
+          });
+        workbookModule.push(
+          {
+            pack: pack,
+            name: itemId,
+            pos: pos0,
+            meta: classMeta,
+            kind: TDClass(
+              if (isDefaultItem)
+              {
+                pack: pack,
+                name: workbookName,
+                sub: externalBridgeClassName,
+              }
+              else
+              {
+                pack: pack,
+                name: workbookName,
+                sub: worksheetName,
+              }),
+            fields: fields,
+          });
       }
 
       for (y in 1...csvData.length)
       {
-        switch (buildItemDefinition(csvData[y]))
-        {
-          case null: // 被忽略的注释行
-          case itemDefinition:
-          {
-            workbookModule.push(itemDefinition);
-          }
-        }
+        buildRow(csvData[y]);
       }
 
       if (!hasCustomBaseClass)
       {
-        workbookModule.push(buildItemDefinition(null));
+        buildRow(null);
       }
+
+      workbookModule.push(
+      {
+        pack: pack,
+        name: externalBridgeClassName,
+        pos: headPos,
+        isExtern: true,
+        meta:
+        [
+          {
+            pos: headPos,
+            name: ":native",
+            params:
+            [
+              {
+                expr: EConst(CString(pack.concat([ bridgeClassName ]).join("."))),
+                pos: headPos,
+              }
+            ],
+          },
+          {
+            pos: headPos,
+            name: ":nativeGen",
+          }
+        ],
+        kind: TDClass(
+          {
+            pack: pack,
+            name: workbookName,
+            sub: baseClassName,
+          }),
+        fields: externalBridgeFields,
+      });
+      workbookModule.push(
+      {
+        pack: pack,
+        name: bridgeClassName,
+        pos: headPos,
+        meta:
+        [
+          {
+            pos: headPos,
+            name: ":nativeGen",
+          }
+        ],
+        kind: TDClass(
+          {
+            pack: pack,
+            name: workbookName,
+            sub: baseClassName,
+          }),
+        fields: bridgeFields,
+      });
     }
 
     [
