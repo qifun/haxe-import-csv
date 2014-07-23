@@ -5,7 +5,7 @@ function xxx(bar:Int):Int;
 Foo,,3,3,"""中文""",
 ,,,,,
 Foo2,var bar:Bar = null; var b:Int = 35;,,,"""b的值是""+b",
-// 对于不重要的类名，可以直接自动生成,,,,,
+// 不重要的类名，直接在Excel中往下拉就会自动生成,,,,,
 Foo3,,,,,
 Foo4,,,,,
 Foo5,,,,,

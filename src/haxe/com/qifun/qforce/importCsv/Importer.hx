@@ -344,7 +344,7 @@ class Importer
 
   static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
-  public static function buildModuleDefinitions(csvEntries:Iterable <
+  public static function buildModuleDefinitions(csvEntries:Iterable<
     {
       var fileName(default, never):String;
       var pack(default, never):Array<String>;
@@ -357,6 +357,8 @@ class Importer
       var types(default, never):Array<TypeDefinition>;
     }> return
   {
+    var mainClassFieldsByModule = new StringMap<Array<Field>>();
+    var baseItemFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
     for (csvEntry in csvEntries)
     {
@@ -380,20 +382,42 @@ class Importer
       }
       var module = pack.concat([ workbookName ]);
       var fullModuleName = module.join(".");
-      var workbookModule = if (workbookModules.exists(fullModuleName))
+      var mainClassFields:Array<Field>;
+      var baseItemFields:Array<Field>;
+      var workbookModule:Array<TypeDefinition>;
+      if (workbookModules.exists(fullModuleName))
       {
-        workbookModules.get(fullModuleName);
+        mainClassFields = mainClassFieldsByModule.get(fullModuleName);
+        baseItemFields = baseItemFieldsByModule.get(fullModuleName);
+        workbookModule = workbookModules.get(fullModuleName);
       }
       else
       {
-        var workbookModule:Array<TypeDefinition> = [];
+        mainClassFields = [];
+        mainClassFieldsByModule.set(fullModuleName, mainClassFields);
+        baseItemFields =
+        [
+          {
+            name: "new",
+            pos: PositionTools.here(),
+            access: [ APrivate, AInline ],
+            kind: FFun(
+              {
+                args: [],
+                ret: null,
+                expr: macro null,
+              }),
+          }
+        ];
+        baseItemFieldsByModule.set(fullModuleName, baseItemFields);
+        workbookModule = [];
         workbookModule.push(
         {
           name: workbookName,
           pack: pack,
           pos: PositionTools.here(),
           kind: TDClass(),
-          fields: [],
+          fields: mainClassFields,
           meta:
           [
             {
@@ -420,23 +444,9 @@ class Importer
               pos: PositionTools.here(),
             }
           ],
-          fields:
-          [
-            {
-              name: "new",
-              pos: PositionTools.here(),
-              access: [ APrivate, AInline ],
-              kind: FFun(
-                {
-                  args: [],
-                  ret: null,
-                  expr: macro null,
-                }),
-            }
-          ],
+          fields: baseItemFields,
         });
         workbookModules.set(fullModuleName, workbookModule);
-        workbookModule;
       }
 
       function getPosition(cell:CsvCell):Position return
@@ -449,7 +459,6 @@ class Importer
           });
       }
 
-      var typeDefinition = null;
       var csvData = csvEntry.data;
       var headRow = csvData[0];
       var headPos = getPosition(headRow[0]);
@@ -711,6 +720,7 @@ class Importer
         var constructorArguments:Array<FunctionArg> = [];
         var initializationExprs = [ macro super() ];
         var fields:Array<Field> = [];
+        var argumentExprs = [];
         for (parameter in parameters)
         {
           switch (parameter.kind)
@@ -758,6 +768,7 @@ class Importer
                   type: t,
                   value: e,
                 });
+              argumentExprs.push(macro $i{parameterName});
             }
             default:
             {
@@ -805,6 +816,74 @@ class Importer
               }),
             fields: fields,
           });
+        var itemPath =
+        {
+          pack: pack,
+          name: workbookName,
+          sub: itemId,
+        }
+
+        if (constructorArguments.empty())
+        {
+          baseItemFields.push(
+            {
+              name: 'get_$itemId',
+              pos: pos0,
+              access: [ AInline ],
+              meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+              kind: FFun(
+                {
+                  ret: TPath(itemPath),
+                  args: [],
+                  expr: macro return $i{workbookName}.$itemId,
+                }),
+            });
+          baseItemFields.push(
+            {
+              name: itemId,
+              pos: pos0,
+              access: [ ],
+              meta: [ { name: ":final", pos: pos0 } ],
+              kind: FProp("get", "never", TPath(itemPath), null)
+            });
+          mainClassFields.push(
+            {
+              name: itemId,
+              pos: pos0,
+              access: [ AStatic, APublic ],
+              meta: [ { name: ":final", pos: pos0 } ],
+              kind: FProp("default", "never", null, macro new $itemPath())
+            });
+        }
+        else
+        {
+          baseItemFields.push(
+            {
+              name: itemId,
+              pos: pos0,
+              access: [ AInline ],
+              meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+              kind: FFun(
+                {
+                  ret: TPath(itemPath),
+                  args: constructorArguments,
+                  expr: macro return new $itemPath($a{argumentExprs}),
+                })
+            });
+          mainClassFields.push(
+            {
+              name: itemId,
+              pos: pos0,
+              access: [ AInline, AStatic, APublic ],
+              meta: [ { name: ":final", pos: pos0 } ],
+              kind: FFun(
+                {
+                  ret: TPath(itemPath),
+                  args: constructorArguments,
+                  expr: macro return new $itemPath($a{argumentExprs}),
+                })
+            });
+        }
       }
 
       for (y in 1...csvData.length)
@@ -818,57 +897,57 @@ class Importer
       }
 
       workbookModule.push(
-      {
-        pack: pack,
-        name: externalBridgeClassName,
-        pos: headPos,
-        isExtern: true,
-        meta:
-        [
-          {
-            pos: headPos,
-            name: ":native",
-            params:
-            [
-              {
-                expr: EConst(CString(pack.concat([ bridgeClassName ]).join("."))),
-                pos: headPos,
-              }
-            ],
-          },
-          {
-            pos: headPos,
-            name: ":nativeGen",
-          }
-        ],
-        kind: TDClass(
-          {
-            pack: pack,
-            name: workbookName,
-            sub: baseClassName,
-          }),
-        fields: externalBridgeFields,
-      });
+        {
+          pack: pack,
+          name: externalBridgeClassName,
+          pos: headPos,
+          isExtern: true,
+          meta:
+          [
+            {
+              pos: headPos,
+              name: ":native",
+              params:
+              [
+                {
+                  expr: EConst(CString(pack.concat([ bridgeClassName ]).join("."))),
+                  pos: headPos,
+                }
+              ],
+            },
+            {
+              pos: headPos,
+              name: ":nativeGen",
+            }
+          ],
+          kind: TDClass(
+            {
+              pack: pack,
+              name: workbookName,
+              sub: baseClassName,
+            }),
+          fields: externalBridgeFields,
+        });
       workbookModule.push(
-      {
-        pack: pack,
-        name: bridgeClassName,
-        pos: headPos,
-        meta:
-        [
-          {
-            pos: headPos,
-            name: ":nativeGen",
-          }
-        ],
-        kind: TDClass(
-          {
-            pack: pack,
-            name: workbookName,
-            sub: baseClassName,
-          }),
-        fields: bridgeFields,
-      });
+        {
+          pack: pack,
+          name: bridgeClassName,
+          pos: headPos,
+          meta:
+          [
+            {
+              pos: headPos,
+              name: ":nativeGen",
+            }
+          ],
+          kind: TDClass(
+            {
+              pack: pack,
+              name: workbookName,
+              sub: baseClassName,
+            }),
+          fields: bridgeFields,
+        });
     }
 
     [
