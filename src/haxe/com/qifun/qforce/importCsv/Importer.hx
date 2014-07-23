@@ -80,6 +80,13 @@ private class ExpectField extends ImporterError
 
 }
 
+private class ExpectVar extends ImporterError
+{
+
+  override function get_message() return Translator.translate("Expected `var`");
+
+}
+
 @:final
 private class ExpectMetaOrItemId extends ImporterError
 {
@@ -185,6 +192,45 @@ class Importer
     #else
       throw "TODO: 不在宏中时，应使用 https://github.com/Simn/haxeparser";
     #end
+  }
+
+  static function parseParameters(
+    content:String,
+    fileName:String,
+    positionMin:Int,
+    positionMax:Int):Array<Field> return
+  {
+    var expr = parseHaxe('var _:{$content\n}', PositionTools.make(
+      {
+        min: positionMin,
+        max: positionMax,
+        file: fileName,
+      }));
+    switch (expr)
+    {
+      case
+      {
+        pos: _,
+        expr: EVars(
+          [
+            {
+              name: "_",
+              expr: null,
+              type: TAnonymous(fields),
+            }
+          ]),
+      }:
+      {
+        fields;
+      }
+      case { pos: PositionTools.getInfos(_) => p } :
+      {
+        throw new ExpectVar(
+          Std.int(Math.max(p.min, positionMin)),
+          Std.int(Math.min(p.max, positionMax)),
+          fileName);
+      }
+    }
   }
 
   static function parseHead(
@@ -646,15 +692,78 @@ class Importer
           hasCustomBaseClass = true;
         }
 
-        var cell1 = getCell(1); //  TODO: 参数
+        var cell1 = getCell(1);
+        var parameters = parseParameters(cell1.content, csvFileName, cell1.positionMin, cell1.positionMax);
+        var constructorArguments:Array<FunctionArg> = [];
+        var initializationExprs = [ macro super() ];
+        var fields:Array<Field> = [];
+        for (parameter in parameters)
+        {
+          switch (parameter.kind)
+          {
+            case FVar(t, e), FProp("default" | "null", "default" | "null", t, e):
+            {
+              var parameterName = parameter.name;
+              fields.push(
+                {
+                  name: parameterName,
+                  doc: parameter.doc,
+                  access: switch (parameter.access)
+                  {
+                    case _.has(AStatic) => true:
+                    {
+                      var p = PositionTools.getInfos(parameter.pos);
+                      (throw new UnexpectedAccess(p.min, p.max, p.file):Array<Access>);
+                    }
+                    case a:
+                    {
+                      a;
+                    }
+                  },
+                  kind: switch(parameter.kind)
+                  {
+                    case FVar(t, _): FVar(t);
+                    case FProp(get, set, t, _): FProp(get, set, t);
+                    default: (throw "Unreachable code!":FieldType);
+                  },
+                  pos: parameter.pos,
+                  meta: parameter.meta,
+                });
+              initializationExprs.push(macro this.$parameterName = $i{parameterName});
+              constructorArguments.push(
+                {
+                  name: parameterName,
+                  opt: e != null || parameter.meta.exists(function(m)return m.name == ":optional"),
+                  type: t,
+                  value: e,
+                });
+            }
+            default:
+            {
+              var p = PositionTools.getInfos(parameter.pos);
+              throw new ExpectVar(p.min, p.max, p.file);
+            }
+          }
+        }
+        var pos0 = getPosition(cell0);
+        fields.push(
+          {
+            name: "new",
+            pos: pos0,
+            access: [ APublic ],
+            kind: FFun(
+              {
+                args: constructorArguments,
+                ret: null,
+                expr: { pos: pos0, expr: EBlock(initializationExprs) },
+              })
+          });
 
-        var fields = [];
         for (i in 0...fieldBuilders.length)
         {
           var x = i + 2;
           fieldBuilders[i](getCell(x), isDefaultItem, fields);
         }
-        var pos0 = getPosition(cell0);
         if (isDefaultItem)
         {
           classMeta.push({ name: ":bridgeProperties", pos: pos0 });
