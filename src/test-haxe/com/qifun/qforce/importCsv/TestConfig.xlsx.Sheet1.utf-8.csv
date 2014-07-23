@@ -1,6 +1,0 @@
-﻿类名,参数,xx:Int,function xxx(bar:Int):Int;,s:String
-// 这一行全部都是注释,,,,
-// 这一行全部都是注释,,,,
-Foo,,3,3,"""中文"""
-// 这一行全部都是注释,,,,
-Foo2,var bar:Bar = null; var b:Int = 35;,,,

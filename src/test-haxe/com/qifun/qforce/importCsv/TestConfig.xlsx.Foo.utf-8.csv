@@ -1,0 +1,15 @@
+﻿类名,参数,xx:Int,"#if cs
+function xxx(bar:Int):Int;
+#end",s:String,// 这一列是注释
+// 与工作表同名的行包含了每一列的默认值,,,,,
+Foo,,3,3,"""中文""",
+,,,,,
+Foo2,var bar:Bar = null; var b:Int = 35;,,,"""b的值是""+b",
+// 对于不重要的类名，可以直接自动生成,,,,,
+Foo3,,,,,
+Foo4,,,,,
+Foo5,,,,,
+Foo6,,,,,
+Foo7,,,,,
+Foo8,,,,,
+Foo9,,,,,
