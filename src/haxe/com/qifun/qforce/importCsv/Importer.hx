@@ -717,6 +717,7 @@ class Importer
           {
             case FVar(t, e), FProp("default" | "null", "default" | "null", t, e):
             {
+              var isOptional = e != null || parameter.meta.exists(function(m)return m.name == ":optional");
               var parameterName = parameter.name;
               fields.push(
                 {
@@ -736,8 +737,14 @@ class Importer
                   },
                   kind: switch(parameter.kind)
                   {
-                    case FVar(t, _): FVar(t);
-                    case FProp(get, set, t, _): FProp(get, set, t);
+                    case FVar(t, _):
+                    {
+                      FVar(isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
+                    }
+                    case FProp(get, set, t, _):
+                    {
+                      FProp(get, set, isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
+                    }
                     default: (throw "Unreachable code!":FieldType);
                   },
                   pos: parameter.pos,
@@ -747,7 +754,7 @@ class Importer
               constructorArguments.push(
                 {
                   name: parameterName,
-                  opt: e != null || parameter.meta.exists(function(m)return m.name == ":optional"),
+                  opt: isOptional,
                   type: t,
                   value: e,
                 });
