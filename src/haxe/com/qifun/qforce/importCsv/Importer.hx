@@ -673,7 +673,14 @@ class Importer
           }
         }
         var cell0 = getCell(0);
-        var classMeta = [];
+        var pos0 = getPosition(cell0);
+        var classMeta:Metadata =
+        [
+          {
+            name: ":nativeGen",
+            pos: pos0,
+          },
+        ];
         var itemId = if (row == null)
         {
           worksheetName;
@@ -691,7 +698,14 @@ class Importer
         {
           hasCustomBaseClass = true;
         }
-
+        if (isDefaultItem)
+        {
+          classMeta.push({ name: ":bridgeProperties", pos: pos0 });
+        }
+        else
+        {
+          classMeta.push({ name: ":final", pos: pos0 });
+        }
         var cell1 = getCell(1);
         var parameters = parseParameters(cell1.content, csvFileName, cell1.positionMin, cell1.positionMax);
         var constructorArguments:Array<FunctionArg> = [];
@@ -745,7 +759,6 @@ class Importer
             }
           }
         }
-        var pos0 = getPosition(cell0);
         fields.push(
           {
             name: "new",
@@ -764,15 +777,6 @@ class Importer
           var x = i + 2;
           fieldBuilders[i](getCell(x), isDefaultItem, fields);
         }
-        if (isDefaultItem)
-        {
-          classMeta.push({ name: ":bridgeProperties", pos: pos0 });
-        }
-        classMeta.push(
-          {
-            name: ":nativeGen",
-            pos: pos0,
-          });
         workbookModule.push(
           {
             pack: pack,
