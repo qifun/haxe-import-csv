@@ -495,6 +495,10 @@ class Importer
                 {
                   newAccess.push(APublic);
                 }
+                if (sourceField.kind.match(FFun(_)) && !isDefaultItem)
+                {
+                  newAccess.push(AOverride);
+                }
                 newAccess;
               }
               default:
@@ -505,13 +509,13 @@ class Importer
             }
             switch (sourceField.kind)
             {
-              case FFun( { expr: null, args: args, ret: ret, params: null } ):
+              case FFun( { expr: null, args: args, ret: ret, params: null | [] } ):
               {
                 fieldOutput.push(
                   {
                     name: sourceField.name,
                     doc: sourceField.doc,
-                    access: [ ],
+                    access: newAccess,
                     pos: sourceField.pos,
                     meta: sourceField.meta,
                     kind: FFun(
