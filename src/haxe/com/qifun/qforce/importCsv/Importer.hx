@@ -14,7 +14,7 @@ import haxe.macro.*;
 import haxe.zip.Uncompress;
 using StringTools;
 using Lambda;
-using haxe.locale.Translator;
+using com.qifun.locale.Translator;
 
 class ImporterError
 {
@@ -98,6 +98,13 @@ private class ExpectMetaOrItemId extends ImporterError
 @:final
 class Importer
 {
+
+  static var IMPORTED_ROW_TYPE_PATH(default, never):TypePath =
+  {
+    pack: [ "com", "qifun", "qforce", "importCsv" ],
+    name: "IImportedRow",
+  }
+
   /**
     把CSV文件导入为Haxe类型。
 
@@ -431,7 +438,7 @@ class Importer
           name: baseClassName,
           pack: pack,
           pos: PositionTools.here(),
-          kind: TDClass(),
+          kind: TDClass(null, [ IMPORTED_ROW_TYPE_PATH ]),
           meta:
           [
             {
