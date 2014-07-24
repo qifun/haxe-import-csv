@@ -610,7 +610,11 @@ class Importer
                       doc: sourceField.doc,
                       access: [ ],
                       pos: sourceField.pos,
-                      meta: sourceField.meta.concat([ { pos: sourceField.pos, name: ":protected" } ]),
+                      meta: sourceField.meta.concat(
+                        [
+                          { pos: sourceField.pos, name: ":transient" },
+                          { pos: sourceField.pos, name: ":protected" },
+                        ]),
                       kind: FVar(
                         TPath(
                           {
