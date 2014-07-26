@@ -8,6 +8,10 @@ haxeSettings
 
 haxeOptions ++= Seq("-lib", "continuation")
 
+haxeOptions ++= Seq("-lib", "haxeparser")
+
+haxeOptions ++= Seq("-lib", "hxparse")
+
 doxPlatforms := Seq("java", "cs")
 
 sourceGenerators in TestHaxe <+= Def.task {

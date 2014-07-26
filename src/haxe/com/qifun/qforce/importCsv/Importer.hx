@@ -4,6 +4,7 @@ import com.dongxiguo.continuation.Continuation;
 import com.dongxiguo.continuation.utils.Generator;
 import com.qifun.qforce.importCsv.CsvParser;
 import haxe.ds.StringMap;
+import haxe.ds.Vector;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Input;
@@ -15,6 +16,15 @@ import haxe.zip.Uncompress;
 using StringTools;
 using Lambda;
 using com.qifun.locale.Translator;
+
+typedef Worksheet =
+{
+  var fileName(default, never):String;
+  var pack(default, never):Array<String>;
+  var workbookName(default, never):String;
+  var worksheetName(default, never):String;
+  var data(default, never):CsvParser.CsvTable;
+}
 
 class ImporterError
 {
@@ -95,6 +105,16 @@ private class ExpectMetaOrItemId extends ImporterError
 
 }
 
+private class InvalidCsvFileName extends ImporterError
+{
+
+  override function get_message() return
+  {
+    Translator.translate("The file name should match *.*.utf-8.csv!");
+  }
+
+}
+
 @:final
 class Importer
 {
@@ -104,6 +124,94 @@ class Importer
     pack: [ "com", "qifun", "qforce", "importCsv" ],
     name: "IImportedRow",
   }
+
+  #if sys
+  static var DOT_SEPERATOR_EREG(default, never) = ~/[\.]/g;
+
+  public static function generateSources(baseCsvPath:String, csvFilePaths:Iterable<String>, generateTo:String):Array<String> return
+  {
+    var csvEntries =
+    [
+      for (csvFilePath in csvFilePaths)
+      {
+        readWorksheet(csvFilePath, '$baseCsvPath/$csvFilePath');
+      }
+    ];
+    var moduleDefinitions = buildModuleDefinitions(csvEntries);
+    [
+      for (moduleDefinition in moduleDefinitions)
+      {
+        var fileName = generateTo + "/" + DOT_SEPERATOR_EREG.replace(moduleDefinition.modulePath, "/") + ".hx";
+        var parent = fileName.substring(0, fileName.lastIndexOf("/"));
+        if (!sys.FileSystem.exists(parent))
+        {
+          sys.FileSystem.createDirectory(parent);
+        }
+        var output = sys.io.File.write(fileName);
+        try
+        {
+          var isFirstType = true;
+          for (type in moduleDefinition.types)
+          {
+            output.writeString(new Printer().printTypeDefinition(type, isFirstType));
+            output.writeByte("\n".code);
+            if (isFirstType)
+            {
+              isFirstType = false;
+            }
+          }
+        }
+        catch (e:Dynamic)
+        {
+          output.close();
+          throw e;
+        }
+        output.close();
+        fileName;
+      }
+    ];
+  }
+  #end
+
+  #if sys
+
+  static var PATH_SEPERATOR_EREG(default, never) = ~/[\/\\]/g;
+
+  static function readWorksheet(csvFilePath:String, resolvedPath:String):Worksheet return
+  {
+    var input = sys.io.File.read(resolvedPath);
+    var data = try
+    {
+      CsvParser.parseInput(input);
+    }
+    catch (e:Dynamic)
+    {
+      input.close();
+      #if neko
+      neko.Lib.rethrow(e);
+      #else
+      throw e;
+      #end
+    }
+    input.close();
+    var csvFileEReg = ~/^(.*)[\/\\]([^\/\\\.]+)\.[^\/\\\.]+\.([^\/\\\.]+)\.utf-8\.csv$/;
+    if (csvFileEReg.match(csvFilePath))
+    {
+      workbookName: csvFileEReg.matched(2),
+      worksheetName: csvFileEReg.matched(3),
+      pack: PATH_SEPERATOR_EREG.split(csvFileEReg.matched(1)),
+      fileName: resolvedPath,
+      data: data,
+    }
+    else
+    {
+      throw new InvalidCsvFileName(
+        0,
+        0,
+        resolvedPath);
+    }
+  }
+  #end
 
   /**
     把CSV文件导入为Haxe类型。
@@ -117,58 +225,15 @@ class Importer
   **/
   macro public static function importCsv(csvFilePaths:Iterable<String>):Void
   {
-    var csvFileEReg = ~/^(.*)[\/\\]([^\/\\\.]+)\.[^\/\\\.]+\.([^\/\\\.]+)\.utf-8\.csv$/;
-    var pathSeperatorEReg = ~/[\/\\]/g;
-    var csvEntries =
-    [
-      for (csvFilePath in csvFilePaths)
-      {
-        var resolvedPath = Context.resolvePath(csvFilePath);
-        var input = sys.io.File.read(resolvedPath);
-        var data = try
-        {
-          CsvParser.parseInput(input);
-        }
-        catch (e:CsvParserError)
-        {
-          input.close();
-          Context.error(e.message, Context.makePosition(
-            {
-              min: e.positionMin,
-              max: e.positionMax,
-              file: resolvedPath,
-            }));
-        }
-        catch (e:Dynamic)
-        {
-          input.close();
-          neko.Lib.rethrow(e);
-        }
-        input.close();
-        if (csvFileEReg.match(csvFilePath))
-        {
-          workbookName: csvFileEReg.matched(2),
-          worksheetName: csvFileEReg.matched(3),
-          pack: pathSeperatorEReg.split(csvFileEReg.matched(1)),
-          fileName: resolvedPath,
-          data: data,
-        }
-        else
-        {
-          Context.error(
-            'The file name should match ${csvFileEReg}!',
-            PositionTools.make(
-              {
-                file: resolvedPath,
-                min: 0,
-                max: 0,
-              }));
-        }
-      }
-    ];
-
     var moduleDefinitions = try
     {
+      var csvEntries =
+      [
+        for (csvFilePath in csvFilePaths)
+        {
+          readWorksheet(csvFilePath, Context.resolvePath(csvFilePath));
+        }
+      ];
       buildModuleDefinitions(csvEntries);
     }
     catch (e:ImporterError)
@@ -188,7 +253,9 @@ class Importer
     #if macro
       Context.parseInlineString(code, position);
     #else
-      throw "TODO: 不在宏中时，应使用 https://github.com/Simn/haxeparser";
+      var p = PositionTools.getInfos(position);
+      var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
+      parser.expr();
     #end
   }
 
@@ -197,7 +264,9 @@ class Importer
     #if macro
       Context.parse(code, position);
     #else
-      throw "TODO: 不在宏中时，应使用 https://github.com/Simn/haxeparser";
+      var p = PositionTools.getInfos(position);
+      var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
+      parser.expr();
     #end
   }
 
@@ -351,14 +420,7 @@ class Importer
 
   static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
-  public static function buildModuleDefinitions(csvEntries:Iterable<
-    {
-      var fileName(default, never):String;
-      var pack(default, never):Array<String>;
-      var workbookName(default, never):String;
-      var worksheetName(default, never):String;
-      var data(default, never):CsvParser.CsvTable;
-    }>):Iterable<
+  public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>):Iterable<
     {
       var modulePath(default, never):String;
       var types(default, never):Array<TypeDefinition>;
