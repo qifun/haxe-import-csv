@@ -916,7 +916,7 @@ class Importer
               name: itemId,
               pos: pos0,
               access: [ ],
-              meta: [ { name: ":final", pos: pos0 } ],
+              meta: [ ],
               kind: FProp("get", "never", TPath(itemPath), null)
             });
           mainClassFields.push(
