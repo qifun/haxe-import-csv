@@ -122,7 +122,7 @@ class Importer
   static var IMPORTED_ROW_TYPE_PATH(default, never):TypePath =
   {
     pack: [ "com", "qifun", "qforce", "importCsv" ],
-    name: "IImportedRow",
+    name: "ImportedRow",
   }
 
   #if sys
@@ -500,7 +500,7 @@ class Importer
           name: baseClassName,
           pack: pack,
           pos: PositionTools.here(),
-          kind: TDClass(null, [ IMPORTED_ROW_TYPE_PATH ]),
+          kind: TDClass(IMPORTED_ROW_TYPE_PATH),
           meta:
           [
             {
