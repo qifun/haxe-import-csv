@@ -3,11 +3,13 @@ package com.qifun.qforce.importCsv;
 import com.dongxiguo.continuation.Continuation;
 import com.dongxiguo.continuation.utils.Generator;
 import com.qifun.qforce.importCsv.CsvParser;
+import com.qifun.qforce.importCsv.error.ImporterError;
 import haxe.ds.StringMap;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Input;
+import haxe.macro.Type;
 import haxe.macro.Expr;
 import haxe.zip.Entry;
 import haxe.zip.Reader;
@@ -24,95 +26,6 @@ typedef Worksheet =
   var workbookName(default, never):String;
   var worksheetName(default, never):String;
   var data(default, never):CsvParser.CsvTable;
-}
-
-class ImporterError
-{
-  public var min:Int;
-  public var max:Int;
-  public var file:String;
-
-  @:allow(com.qifun.qforce.importCsv.Importer)
-  function new(min:Int, max:Int, file:String)
-  {
-    this.min = min;
-    this.max = max;
-    this.file = file;
-  }
-
-  public var message(get, never):String;
-
-  function get_message() return "Import parsed CSV failed";
-
-}
-
-private class UnexpectedVarInitializer extends ImporterError
-{
-
-  override function get_message() return
-  {
-    Translator.translate("The var definition in first row must not include a initializer");
-  }
-
-}
-
-private class UnexpectedAccess extends ImporterError
-{
-
-  override function get_message() return
-  {
-    Translator.translate("Unexpected access");
-  }
-
-}
-
-private class UnexpectedFunctionBody extends ImporterError
-{
-
-  override function get_message() return
-  {
-    Translator.translate("The function definition in first row must not include a function body");
-  }
-
-}
-
-private class PropertyIsNotSupported extends ImporterError
-{
-
-  override function get_message() return Translator.translate("Property is not supported");
-
-}
-
-private class ExpectField extends ImporterError
-{
-
-  override function get_message() return Translator.translate("Expected `function` or `var`");
-
-}
-
-private class ExpectVar extends ImporterError
-{
-
-  override function get_message() return Translator.translate("Expected `var`");
-
-}
-
-@:final
-private class ExpectMetaOrItemId extends ImporterError
-{
-
-  override function get_message() return Translator.translate("Expected `@meta` or `ItemId`");
-
-}
-
-private class InvalidCsvFileName extends ImporterError
-{
-
-  override function get_message() return
-  {
-    Translator.translate("The file name should match *.*.utf-8.csv!");
-  }
-
 }
 
 @:final
@@ -607,7 +520,12 @@ class Importer
               }
               case fieldBody:
               {
-                parseHaxe(fieldBody, getPosition(cell));
+                var cellContentExpr =
+                {
+                  expr: EConst(CString(fieldBody)),
+                  pos: getPosition(cell),
+                };
+                macro com.qifun.qforce.importCsv.Importer.ImporterRuntime.parseCell($cellContentExpr);
               }
             }
             var newAccess = switch (sourceField.access)
@@ -1035,6 +953,53 @@ class Importer
     ];
   }
 
+}
+
+@:dox(hide)
+class ImporterRuntime
+{
+  macro public static function parseCell(cellContent:ExprOf<String>):Expr return
+  {
+    var expectedType = Context.follow(Context.getExpectedType());
+    var statics = switch (expectedType)
+    {
+      case TInst(t, _): t.get().statics.get();
+      case TAbstract(_.get().impl => impl, _) if (impl != null): impl.get().statics.get();
+      default: null;
+    }
+    if (statics != null && statics.exists(function(classField:ClassField) return classField.name == "parseCell"))
+    {
+      var baseType:BaseType = switch (expectedType)
+      {
+        case TInst(t, _): t.get();
+        case TAbstract(t, _): t.get();
+        default: throw "Unreachable code!";
+      }
+      var expectedModuleExpr = MacroStringTools.toFieldExpr(baseType.module.split("."));
+      var expectedTypeName = baseType.name;
+      macro $expectedModuleExpr.$expectedTypeName.parseCell($cellContent);
+    }
+    else
+    {
+      switch (cellContent)
+      {
+        case { pos: pos, expr: EConst(CString(code)) }:
+        {
+          #if macro
+            Context.parse(code, pos);
+          #else
+            var p = PositionTools.getInfos(pos);
+            var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
+            parser.expr();
+          #end
+        }
+        case { pos: pos } :
+        {
+          Context.error(Translator.translate("Expected \""), pos);
+        }
+      }
+    }
+  }
 }
 
 // vim: et sts=2 sw=2
