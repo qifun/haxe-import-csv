@@ -12,7 +12,7 @@ haxeOptions ++= Seq("-lib", "haxeparser")
 
 haxeOptions ++= Seq("-lib", "hxparse")
 
-doxPlatforms := Seq("java", "cs")
+doxPlatforms := Seq("java", "cs", "neko")
 
 sourceGenerators in TestHaxe <+= Def.task {
   val xlsxBase = (sourceDirectory in TestHaxe).value
