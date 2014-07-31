@@ -4,7 +4,7 @@ name := "haxe-import-csv"
 
 version := "0.1.0-SNAPSHOT"
 
-haxeSettings
+haxeJavaSettings
 
 haxeOptions ++= Seq("-lib", "continuation")
 
