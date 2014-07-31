@@ -986,7 +986,7 @@ class ImporterRuntime
         case { pos: pos, expr: EConst(CString(code)) }:
         {
           #if macro
-            Context.parse(code, pos);
+            Context.parse(code+"\n", pos);
           #else
             var p = PositionTools.getInfos(pos);
             var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
