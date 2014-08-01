@@ -6,6 +6,8 @@ version := "0.1.0-SNAPSHOT"
 
 haxeJavaSettings
 
+haxeCSharpSettings
+
 haxeOptions ++= Seq("-lib", "continuation")
 
 haxeOptions ++= Seq("-lib", "haxeparser")
