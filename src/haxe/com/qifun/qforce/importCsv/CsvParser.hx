@@ -112,7 +112,7 @@ class CsvParser
               }
               else
               {
-                return CELL(output.getBytes().toString(), positionMin, input.position);
+                return CELL(output.getBytes().toString(), positionMin + 1, input.position - 1);
               }
             }
             case -1:
