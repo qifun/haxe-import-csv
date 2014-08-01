@@ -33,4 +33,6 @@ sourceGenerators in TestHaxe <+= Def.task {
   unzipXlsx((xlsxBase ** "*.xlsx").get.toSet).toSeq
 }
 
+libararyDependencies += "com.qifun" %% "haxe-util" % "0.1.0-SNAPSHOT"
+
 // vim: sts=2 sw=2 et
