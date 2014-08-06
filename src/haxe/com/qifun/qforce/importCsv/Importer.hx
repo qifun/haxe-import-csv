@@ -979,45 +979,63 @@ class ImporterRuntime
 {
   macro public static function parseCell(cellContent:ExprOf<String>):Expr return
   {
-    var expectedType = Context.follow(Context.getExpectedType());
-    var statics = switch (expectedType)
-    {
-      case TInst(t, _): t.get().statics.get();
-      case TAbstract(_.get().impl => impl, _) if (impl != null): impl.get().statics.get();
-      default: null;
-    }
-    if (statics != null && statics.exists(function(classField:ClassField) return classField.name == "parseCell"))
+    function parseByType(expectedType:Type):Expr return
     {
       var baseType:BaseType = switch (expectedType)
       {
         case TInst(t, _): t.get();
         case TAbstract(t, _): t.get();
+        case TType(t, _): t.get();
         default: throw "Unreachable code!";
       }
-      var expectedModuleExpr = MacroStringTools.toFieldExpr(baseType.module.split("."));
-      var expectedTypeName = baseType.name;
-      macro $expectedModuleExpr.$expectedTypeName.parseCell($cellContent);
-    }
-    else
-    {
-      switch (cellContent)
+      for (entry in baseType.meta.get())
       {
-        case { pos: pos, expr: EConst(CString(code)) }:
+        switch (entry)
         {
-          #if macro
-            Context.parse(code+"\n", pos);
-          #else
-            var p = PositionTools.getInfos(pos);
-            var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
-            parser.expr();
-          #end
+          case { name: ":parseCellFunction", params: [ functionExpr ] } :
+          {
+            return macro $functionExpr($cellContent);
+          }
+          default:
+          {
+            continue;
+          }
         }
-        case { pos: pos } :
+      }
+      var followable = switch (expectedType)
+      {
+        case TMono(_): true;
+        case TLazy(_): true;
+        case TType(_, _): true;
+        case TInst(_.get() => { kind: KGenericBuild }, _): true;
+        default: false;
+      }
+      if (followable)
+      {
+        parseByType(Context.follow(expectedType, true));
+      }
+      else
+      {
+        switch (cellContent)
         {
-          Context.error(Translator.translate("Expected \""), pos);
+          case { pos: pos, expr: EConst(CString(code)) }:
+          {
+            #if macro
+              Context.parse(code+"\n", pos);
+            #else
+              var p = PositionTools.getInfos(pos);
+              var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
+              parser.expr();
+            #end
+          }
+          case { pos: pos } :
+          {
+            Context.error(Translator.translate("Expected \""), pos);
+          }
         }
       }
     }
+    parseByType(Context.getExpectedType());
   }
 }
 

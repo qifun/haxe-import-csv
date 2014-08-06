@@ -22,13 +22,11 @@ package com.qifun.qforce.importCsv;
 import com.qifun.locale.Translator;
 import haxe.macro.*;
 
-abstract StringInterpolation(String)
-{
+@:parseCellFunction(com.qifun.qforce.importCsv.StringInterpolation.StringInterpolationCellParser.parseCell)
+typedef StringInterpolation = String;
 
-  public inline function new(underlying:String)
-  {
-    this = underlying;
-  }
+class StringInterpolationCellParser
+{
 
   macro public static function parseCell(cellContent:ExprOf<String>):Expr return
   {
@@ -36,13 +34,12 @@ abstract StringInterpolation(String)
     {
       case { pos: PositionTools.getInfos(_) => p, expr: EConst(CString(code)) }:
       {
-        var stringExpr = MacroStringTools.formatString(code, PositionTools.make(
+        MacroStringTools.formatString(code, PositionTools.make(
           {
             min: p.min - 1,
             max: p.max,
             file: p.file,
           }));
-        macro new com.qifun.qforce.importCsv.StringInterpolation($stringExpr);
       }
       case { pos: pos } :
       {
