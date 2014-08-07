@@ -176,7 +176,11 @@ class Importer
     for (moduleDefinition in moduleDefinitions)
     {
       //for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
+      #if using_worksheet
+      Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types, moduleDefinition.usings);
+      #else
       Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types);
+      #end
     }
   }
 
@@ -356,610 +360,685 @@ class Importer
     {
       var modulePath(default, never):String;
       var types(default, never):Array<TypeDefinition>;
+      #if using_worksheet
+      var usings(default, never):Array<TypePath>;
+      #end
     }> return
   {
     var mainClassFieldsByModule = new StringMap<Array<Field>>();
     var baseItemFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
+    #if using_worksheet
+    var workbookUsings = new StringMap<Array<TypePath>>();
+    #end
     for (csvEntry in csvEntries)
     {
       var csvFileName = csvEntry.fileName;
       var workbookName = csvEntry.workbookName;
-      var worksheetName = csvEntry.worksheetName;
       var pack = csvEntry.pack;
-      var baseClassName = workbookName + "_Base";
-      var externalBridgeClassName = worksheetName + "_ExternalBridge";
-      var bridgeClassName = worksheetName + "_Bridge";
-      var moduleExpr = switch (MacroStringTools.toFieldExpr(pack))
-      {
-        case null:
-        {
-          macro $i{workbookName};
-        }
-        case packExpr:
-        {
-          macro $packExpr.$workbookName;
-        }
-      }
       var module = pack.concat([ workbookName ]);
       var fullModuleName = module.join(".");
-      var mainClassFields:Array<Field>;
-      var baseItemFields:Array<Field>;
-      var workbookModule:Array<TypeDefinition>;
-      if (workbookModules.exists(fullModuleName))
+      switch (csvEntry.worksheetName)
       {
-        mainClassFields = mainClassFieldsByModule.get(fullModuleName);
-        baseItemFields = baseItemFieldsByModule.get(fullModuleName);
-        workbookModule = workbookModules.get(fullModuleName);
-      }
-      else
-      {
-        mainClassFields = [];
-        mainClassFieldsByModule.set(fullModuleName, mainClassFields);
-        baseItemFields =
-        [
-          {
-            name: "new",
-            pos: PositionTools.here(),
-            access: [ APrivate, AInline ],
-            kind: FFun(
-              {
-                args: [],
-                ret: null,
-                expr: macro null,
-              }),
-          }
-        ];
-        baseItemFieldsByModule.set(fullModuleName, baseItemFields);
-        workbookModule = [];
-        workbookModule.push(
+        #if using_worksheet
+        case "using":
         {
-          name: workbookName,
-          pack: pack,
-          pos: PositionTools.here(),
-          kind: TDClass(),
-          fields: mainClassFields,
-          meta:
-          [
-            {
-              name: ":nativeGen",
-              pos: PositionTools.here(),
-            }
-          ]
-        });
-        workbookModule.push(
-        {
-          name: baseClassName,
-          pack: pack,
-          pos: PositionTools.here(),
-          kind: TDClass(IMPORTED_ROW_TYPE_PATH),
-          meta:
-          [
-            {
-              name: ":nativeGen",
-              pos: PositionTools.here(),
-            },
-            {
-              name: ":allow",
-              params: [ moduleExpr ],
-              pos: PositionTools.here(),
-            }
-          ],
-          fields: baseItemFields,
-        });
-        workbookModules.set(fullModuleName, workbookModule);
-      }
-
-      function getPosition(cell:CsvCell):Position return
-      {
-        PositionTools.make(
+          var usings:Array<TypePath> = [];
+          for (row in csvEntry.data)
           {
-            min: cell.positionMin,
-            max: cell.positionMax,
-            file: csvFileName,
-          });
-      }
-
-      var csvData = csvEntry.data;
-      var headRow = csvData[0];
-      var headPos = getPosition(headRow[0]);
-      var numColumnsRequired = headRow.length;
-      var fieldBuilders = [];
-      var externalBridgeFields:Array<Field> = [];
-      var bridgeFields:Array<Field> = [];
-      for (x in 2...numColumnsRequired)
-      {
-        var builderIndex = x - 2;
-        var headCell = headRow[x];
-        var headCellPos = getPosition(headCell);
-        var sourceField = parseHead(headCell.content, csvFileName, headCell.positionMin, headCell.positionMax);
-        if (sourceField == null)
-        {
-          fieldBuilders[builderIndex] = DUMMY_FUNCTION;
-        }
-        else
-        {
-          switch (sourceField.kind)
-          {
-            case FVar(t, null):
+            for (cell in row)
             {
-              var fieldName = sourceField.name;
-              var getterName = 'get_$fieldName';
-              externalBridgeFields.push(
-                {
-                  pos: headCellPos,
-                  name: getterName,
-                  kind: FFun(
-                    {
-                      args: [],
-                      ret: t,
-                      expr: null,
-                    }),
-                });
-              bridgeFields.push(
-                {
-                  pos: headCellPos,
-                  name: getterName,
-                  kind: FFun(
-                    {
-                      args: [],
-                      ret: t,
-                      expr: macro return throw "Not implemented!",
-                    }),
-                });
-              bridgeFields.push(
-                {
-                  pos: headCellPos,
-                  name: fieldName,
-                  kind: FFun(
-                    {
-                      args: [],
-                      ret: t,
-                      expr: macro return this.$getterName(),
-                    }),
-                });
-            }
-            default:
-            {
-              // 无需生成桥接代码
-            }
-          }
-          fieldBuilders[builderIndex] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
-          {
-            var cellExpr = switch (cell.content)
-            {
-              case null, "" if (!isDefaultItem):
+              switch (cell.content)
               {
-                // 无需设置，使用默认值即可
-                return;
-              }
-              case null, "":
-              {
-                macro cast null;
-              }
-              case fieldBody:
-              {
-                var cellContentExpr =
+                case null, "":
                 {
-                  expr: EConst(CString(fieldBody)),
-                  pos: getPosition(cell),
-                };
-                macro com.qifun.qforce.importCsv.Importer.ImporterRuntime.parseCell($cellContentExpr);
-              }
-            }
-            var newAccess = switch (sourceField.access)
-            {
-              case originalAccess if (originalAccess.foreach(function(a) return a.match(APrivate | AInline))):
-              {
-                var newAccess = originalAccess.copy();
-                if (!originalAccess.exists(function(a) return a.match(APrivate)))
-                {
-                  newAccess.push(APublic);
+                  continue;
                 }
-                if (sourceField.kind.match(FFun(_)) && !isDefaultItem)
+                case usingPath:
                 {
-                  newAccess.push(AOverride);
-                }
-                newAccess;
-              }
-              default:
-              {
-                var p = PositionTools.getInfos(sourceField.pos);
-                throw new UnexpectedAccess(p.min, p.max, p.file);
-              }
-            }
-            switch (sourceField.kind)
-            {
-              case FFun( { expr: null, args: args, ret: ret, params: null | [] } ):
-              {
-                fieldOutput.push(
+                  if (usingPath.startsWith("\xEF\xBB\xBF"))
                   {
-                    name: sourceField.name,
-                    doc: sourceField.doc,
-                    access: newAccess,
-                    pos: sourceField.pos,
-                    meta: sourceField.meta,
-                    kind: FFun(
-                      {
-                        args: args,
-                        ret: ret,
-                        expr: macro return $cellExpr,
-                      })
-                  });
-              }
-              case FFun( { expr: { pos: pos } } ):
-              {
-                var p = PositionTools.getInfos(pos);
-                throw new UnexpectedFunctionBody(p.min, p.max, p.file);
-              }
-              case FVar(t, null):
-              {
-                var fieldName = sourceField.name;
-                var underlyingFieldName = '_$fieldName';
-                if (isDefaultItem)
-                {
-                  fieldOutput.push(
-                    {
-                      name: fieldName,
-                      doc: sourceField.doc,
-                      access: newAccess,
-                      pos: sourceField.pos,
-                      meta: sourceField.meta,
-                      kind: FProp(
-                        "get",
-                        "never",
-                        t)
-                    });
-                  fieldOutput.push(
-                    {
-                      name: underlyingFieldName,
-                      doc: sourceField.doc,
-                      access: [ ],
-                      pos: sourceField.pos,
-                      meta: sourceField.meta.concat(
-                        [
-                          { pos: sourceField.pos, name: ":transient" },
-                          { pos: sourceField.pos, name: ":protected" },
-                        ]),
-                      kind: FVar(
-                        TPath(
-                          {
-                            name: "Null",
-                            pack: [ ],
-                            params: [ TPType(t) ],
-                          }))
-                    });
-                }
-                fieldOutput.push(
+                    usingPath = usingPath.substring(3);
+                  }
+                  switch (usingPath.split("."))
                   {
-                    name: 'get_$fieldName',
-                    doc: sourceField.doc,
-                    access: [ AOverride ],
-                    pos: sourceField.pos,
-                    meta: sourceField.meta,
-                    kind: FFun(
-                      {
-                        args: [],
-                        ret: t,
-                        expr: macro return
+                    case [ name ]:
+                      usings.push(
                         {
-                          if ($i{underlyingFieldName} == null)
+                          pack: [],
+                          name: name,
+                        });
+                    case pack:
+                    {
+                      var c = pack[pack.length - 2].charCodeAt(0);
+                      if (c >= "a".code && c <= "z".code)
+                      {
+                        var name = pack.pop();
+                        usings.push(
                           {
-                            $i{underlyingFieldName} = $cellExpr;
-                          }
-                          $i{underlyingFieldName};
-                        },
-                      }),
-                  });
-              }
-              case FVar(_, { pos: pos }):
-              {
-                var p = PositionTools.getInfos(pos);
-                throw new UnexpectedVarInitializer(p.min, p.max, p.file);
-              }
-              case FProp(_, _, _, _):
-              {
-                var p = PositionTools.getInfos(sourceField.pos);
-                throw new PropertyIsNotSupported(p.min, p.max, p.file);
+                            pack: pack,
+                            name: name,
+                          });
+                      }
+                      else
+                      {
+                        var sub = pack.pop();
+                        var name = pack.pop();
+                        usings.push(
+                          {
+                            pack: pack,
+                            sub: sub,
+                            name: name,
+                          });
+                      }
+                    }
+                  }
+                }
               }
             }
           }
+          workbookUsings.set(fullModuleName, usings);
+          continue;
         }
-      }
-      var hasCustomBaseClass = false;
-      function buildRow(row:Null<CsvRow>):Void
-      {
-        var numColumns = row == null ? 0 : row.length;
-        var defaultCell = null;
-        function getCell(x:Int):CsvCell return
+        #end
+        case worksheetName:
         {
-          if (x < numColumns)
+          var baseClassName = workbookName + "_Base";
+          var externalBridgeClassName = worksheetName + "_ExternalBridge";
+          var bridgeClassName = worksheetName + "_Bridge";
+          var moduleExpr = switch (MacroStringTools.toFieldExpr(pack))
           {
-            row[x];
+            case null:
+            {
+              macro $i{workbookName};
+            }
+            case packExpr:
+            {
+              macro $packExpr.$workbookName;
+            }
           }
-          else if (defaultCell != null)
+          var mainClassFields:Array<Field>;
+          var baseItemFields:Array<Field>;
+          var workbookModule:Array<TypeDefinition>;
+          if (workbookModules.exists(fullModuleName))
           {
-            defaultCell;
+            mainClassFields = mainClassFieldsByModule.get(fullModuleName);
+            baseItemFields = baseItemFieldsByModule.get(fullModuleName);
+            workbookModule = workbookModules.get(fullModuleName);
           }
           else
           {
-            defaultCell =
-            {
-              content: "",
-              positionMin: row == null ? 0 : row[numColumns - 1].positionMin,
-              positionMax: row == null ? 0 : row[numColumns - 1].positionMax,
-            }
-          }
-        }
-        var cell0 = getCell(0);
-        var pos0 = getPosition(cell0);
-        var classMeta:Metadata =
-        [
-          {
-            name: ":nativeGen",
-            pos: pos0,
-          },
-        ];
-        var itemId = if (row == null)
-        {
-          worksheetName;
-        }
-        else
-        {
-          parseItemId(cell0.content, csvFileName, cell0.positionMin, cell0.positionMax, classMeta);
-        }
-        if (itemId == null)
-        {
-          return;
-        }
-        var isDefaultItem = itemId == worksheetName;
-        if (isDefaultItem)
-        {
-          hasCustomBaseClass = true;
-        }
-        if (isDefaultItem)
-        {
-          classMeta.push({ name: ":bridgeProperties", pos: pos0 });
-        }
-        else
-        {
-          classMeta.push({ name: ":final", pos: pos0 });
-        }
-        var cell1 = getCell(1);
-        var parameters = parseParameters(cell1.content, csvFileName, cell1.positionMin, cell1.positionMax);
-        var constructorArguments:Array<FunctionArg> = [];
-        var initializationExprs = [ macro super() ];
-        var fields:Array<Field> = [];
-        var argumentExprs = [];
-        for (parameter in parameters)
-        {
-          switch (parameter.kind)
-          {
-            case FVar(t, e), FProp("default" | "null", "default" | "null", t, e):
-            {
-              var isOptional = e != null || parameter.meta.exists(function(m)return m.name == ":optional");
-              var parameterName = parameter.name;
-              fields.push(
-                {
-                  name: parameterName,
-                  doc: parameter.doc,
-                  access: switch (parameter.access)
-                  {
-                    case _.has(AStatic) => true:
-                    {
-                      var p = PositionTools.getInfos(parameter.pos);
-                      (throw new UnexpectedAccess(p.min, p.max, p.file):Array<Access>);
-                    }
-                    case a:
-                    {
-                      a;
-                    }
-                  },
-                  kind: switch(parameter.kind)
-                  {
-                    case FVar(t, _):
-                    {
-                      FVar(isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
-                    }
-                    case FProp(get, set, t, _):
-                    {
-                      FProp(get, set, isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
-                    }
-                    default: (throw "Unreachable code!":FieldType);
-                  },
-                  pos: parameter.pos,
-                  meta: parameter.meta,
-                });
-              initializationExprs.push(macro this.$parameterName = $i{parameterName});
-              constructorArguments.push(
-                {
-                  name: parameterName,
-                  opt: isOptional,
-                  type: t,
-                  value: e,
-                });
-              argumentExprs.push(macro $i{parameterName});
-            }
-            default:
-            {
-              var p = PositionTools.getInfos(parameter.pos);
-              throw new ExpectVar(p.min, p.max, p.file);
-            }
-          }
-        }
-        fields.push(
-          {
-            name: "new",
-            pos: pos0,
-            access: [ APublic ],
-            kind: FFun(
+            mainClassFields = [];
+            mainClassFieldsByModule.set(fullModuleName, mainClassFields);
+            baseItemFields =
+            [
               {
-                args: constructorArguments,
-                ret: null,
-                expr: { pos: pos0, expr: EBlock(initializationExprs) },
-              })
-          });
+                name: "new",
+                pos: PositionTools.here(),
+                access: [ APrivate, AInline ],
+                kind: FFun(
+                  {
+                    args: [],
+                    ret: null,
+                    expr: macro null,
+                  }),
+              }
+            ];
+            baseItemFieldsByModule.set(fullModuleName, baseItemFields);
+            workbookModule = [];
+            workbookModule.push(
+            {
+              name: workbookName,
+              pack: pack,
+              pos: PositionTools.here(),
+              kind: TDClass(),
+              fields: mainClassFields,
+              meta:
+              [
+                {
+                  name: ":nativeGen",
+                  pos: PositionTools.here(),
+                }
+              ]
+            });
+            workbookModule.push(
+            {
+              name: baseClassName,
+              pack: pack,
+              pos: PositionTools.here(),
+              kind: TDClass(IMPORTED_ROW_TYPE_PATH),
+              meta:
+              [
+                {
+                  name: ":nativeGen",
+                  pos: PositionTools.here(),
+                },
+                {
+                  name: ":allow",
+                  params: [ moduleExpr ],
+                  pos: PositionTools.here(),
+                }
+              ],
+              fields: baseItemFields,
+            });
+            workbookModules.set(fullModuleName, workbookModule);
+          }
 
-        for (i in 0...fieldBuilders.length)
-        {
-          var x = i + 2;
-          fieldBuilders[i](getCell(x), isDefaultItem, fields);
-        }
-        workbookModule.push(
+          function getPosition(cell:CsvCell):Position return
           {
-            pack: pack,
-            name: itemId,
-            pos: pos0,
-            meta: classMeta,
-            kind: TDClass(
-              if (isDefaultItem)
+            PositionTools.make(
               {
-                pack: pack,
-                name: workbookName,
-                sub: externalBridgeClassName,
+                min: cell.positionMin,
+                max: cell.positionMax,
+                file: csvFileName,
+              });
+          }
+
+          var csvData = csvEntry.data;
+          var headRow = csvData[0];
+          var headPos = getPosition(headRow[0]);
+          var numColumnsRequired = headRow.length;
+          var fieldBuilders = [];
+          var externalBridgeFields:Array<Field> = [];
+          var bridgeFields:Array<Field> = [];
+          for (x in 2...numColumnsRequired)
+          {
+            var builderIndex = x - 2;
+            var headCell = headRow[x];
+            var headCellPos = getPosition(headCell);
+            var sourceField = parseHead(headCell.content, csvFileName, headCell.positionMin, headCell.positionMax);
+            if (sourceField == null)
+            {
+              fieldBuilders[builderIndex] = DUMMY_FUNCTION;
+            }
+            else
+            {
+              switch (sourceField.kind)
+              {
+                case FVar(t, null):
+                {
+                  var fieldName = sourceField.name;
+                  var getterName = 'get_$fieldName';
+                  externalBridgeFields.push(
+                    {
+                      pos: headCellPos,
+                      name: getterName,
+                      kind: FFun(
+                        {
+                          args: [],
+                          ret: t,
+                          expr: null,
+                        }),
+                    });
+                  bridgeFields.push(
+                    {
+                      pos: headCellPos,
+                      name: getterName,
+                      kind: FFun(
+                        {
+                          args: [],
+                          ret: t,
+                          expr: macro return throw "Not implemented!",
+                        }),
+                    });
+                  bridgeFields.push(
+                    {
+                      pos: headCellPos,
+                      name: fieldName,
+                      kind: FFun(
+                        {
+                          args: [],
+                          ret: t,
+                          expr: macro return this.$getterName(),
+                        }),
+                    });
+                }
+                default:
+                {
+                  // 无需生成桥接代码
+                }
+              }
+              fieldBuilders[builderIndex] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
+              {
+                var cellExpr = switch (cell.content)
+                {
+                  case null, "" if (!isDefaultItem):
+                  {
+                    // 无需设置，使用默认值即可
+                    return;
+                  }
+                  case null, "":
+                  {
+                    macro cast null;
+                  }
+                  case fieldBody:
+                  {
+                    var cellContentExpr =
+                    {
+                      expr: EConst(CString(fieldBody)),
+                      pos: getPosition(cell),
+                    };
+                    macro com.qifun.qforce.importCsv.Importer.ImporterRuntime.parseCell($cellContentExpr);
+                  }
+                }
+                var newAccess = switch (sourceField.access)
+                {
+                  case originalAccess if (originalAccess.foreach(function(a) return a.match(APrivate | AInline))):
+                  {
+                    var newAccess = originalAccess.copy();
+                    if (!originalAccess.exists(function(a) return a.match(APrivate)))
+                    {
+                      newAccess.push(APublic);
+                    }
+                    if (sourceField.kind.match(FFun(_)) && !isDefaultItem)
+                    {
+                      newAccess.push(AOverride);
+                    }
+                    newAccess;
+                  }
+                  default:
+                  {
+                    var p = PositionTools.getInfos(sourceField.pos);
+                    throw new UnexpectedAccess(p.min, p.max, p.file);
+                  }
+                }
+                switch (sourceField.kind)
+                {
+                  case FFun( { expr: null, args: args, ret: ret, params: null | [] } ):
+                  {
+                    fieldOutput.push(
+                      {
+                        name: sourceField.name,
+                        doc: sourceField.doc,
+                        access: newAccess,
+                        pos: sourceField.pos,
+                        meta: sourceField.meta,
+                        kind: FFun(
+                          {
+                            args: args,
+                            ret: ret,
+                            expr: macro return $cellExpr,
+                          })
+                      });
+                  }
+                  case FFun( { expr: { pos: pos } } ):
+                  {
+                    var p = PositionTools.getInfos(pos);
+                    throw new UnexpectedFunctionBody(p.min, p.max, p.file);
+                  }
+                  case FVar(t, null):
+                  {
+                    var fieldName = sourceField.name;
+                    var underlyingFieldName = '_$fieldName';
+                    if (isDefaultItem)
+                    {
+                      fieldOutput.push(
+                        {
+                          name: fieldName,
+                          doc: sourceField.doc,
+                          access: newAccess,
+                          pos: sourceField.pos,
+                          meta: sourceField.meta,
+                          kind: FProp(
+                            "get",
+                            "never",
+                            t)
+                        });
+                      fieldOutput.push(
+                        {
+                          name: underlyingFieldName,
+                          doc: sourceField.doc,
+                          access: [ ],
+                          pos: sourceField.pos,
+                          meta: sourceField.meta.concat(
+                            [
+                              { pos: sourceField.pos, name: ":transient" },
+                              { pos: sourceField.pos, name: ":protected" },
+                            ]),
+                          kind: FVar(
+                            TPath(
+                              {
+                                name: "Null",
+                                pack: [ ],
+                                params: [ TPType(t) ],
+                              }))
+                        });
+                    }
+                    fieldOutput.push(
+                      {
+                        name: 'get_$fieldName',
+                        doc: sourceField.doc,
+                        access: [ AOverride ],
+                        pos: sourceField.pos,
+                        meta: sourceField.meta,
+                        kind: FFun(
+                          {
+                            args: [],
+                            ret: t,
+                            expr: macro return
+                            {
+                              if ($i{underlyingFieldName} == null)
+                              {
+                                $i{underlyingFieldName} = $cellExpr;
+                              }
+                              $i{underlyingFieldName};
+                            },
+                          }),
+                      });
+                  }
+                  case FVar(_, { pos: pos }):
+                  {
+                    var p = PositionTools.getInfos(pos);
+                    throw new UnexpectedVarInitializer(p.min, p.max, p.file);
+                  }
+                  case FProp(_, _, _, _):
+                  {
+                    var p = PositionTools.getInfos(sourceField.pos);
+                    throw new PropertyIsNotSupported(p.min, p.max, p.file);
+                  }
+                }
+              }
+            }
+          }
+          var hasCustomBaseClass = false;
+          function buildRow(row:Null<CsvRow>):Void
+          {
+            var numColumns = row == null ? 0 : row.length;
+            var defaultCell = null;
+            function getCell(x:Int):CsvCell return
+            {
+              if (x < numColumns)
+              {
+                row[x];
+              }
+              else if (defaultCell != null)
+              {
+                defaultCell;
               }
               else
               {
+                defaultCell =
+                {
+                  content: "",
+                  positionMin: row == null ? 0 : row[numColumns - 1].positionMin,
+                  positionMax: row == null ? 0 : row[numColumns - 1].positionMax,
+                }
+              }
+            }
+            var cell0 = getCell(0);
+            var pos0 = getPosition(cell0);
+            var classMeta:Metadata =
+            [
+              {
+                name: ":nativeGen",
+                pos: pos0,
+              },
+            ];
+            var itemId = if (row == null)
+            {
+              worksheetName;
+            }
+            else
+            {
+              parseItemId(cell0.content, csvFileName, cell0.positionMin, cell0.positionMax, classMeta);
+            }
+            if (itemId == null)
+            {
+              return;
+            }
+            var isDefaultItem = itemId == worksheetName;
+            if (isDefaultItem)
+            {
+              hasCustomBaseClass = true;
+            }
+            if (isDefaultItem)
+            {
+              classMeta.push({ name: ":bridgeProperties", pos: pos0 });
+            }
+            else
+            {
+              classMeta.push({ name: ":final", pos: pos0 });
+            }
+            var cell1 = getCell(1);
+            var parameters = parseParameters(cell1.content, csvFileName, cell1.positionMin, cell1.positionMax);
+            var constructorArguments:Array<FunctionArg> = [];
+            var initializationExprs = [ macro super() ];
+            var fields:Array<Field> = [];
+            var argumentExprs = [];
+            for (parameter in parameters)
+            {
+              switch (parameter.kind)
+              {
+                case FVar(t, e), FProp("default" | "null", "default" | "null", t, e):
+                {
+                  var isOptional = e != null || parameter.meta.exists(function(m)return m.name == ":optional");
+                  var parameterName = parameter.name;
+                  fields.push(
+                    {
+                      name: parameterName,
+                      doc: parameter.doc,
+                      access: switch (parameter.access)
+                      {
+                        case _.has(AStatic) => true:
+                        {
+                          var p = PositionTools.getInfos(parameter.pos);
+                          (throw new UnexpectedAccess(p.min, p.max, p.file):Array<Access>);
+                        }
+                        case a:
+                        {
+                          a;
+                        }
+                      },
+                      kind: switch(parameter.kind)
+                      {
+                        case FVar(t, _):
+                        {
+                          FVar(isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
+                        }
+                        case FProp(get, set, t, _):
+                        {
+                          FProp(get, set, isOptional ? TPath({ pack: [], name: "Null", params: [ TPType(t) ] }) : t);
+                        }
+                        default: (throw "Unreachable code!":FieldType);
+                      },
+                      pos: parameter.pos,
+                      meta: parameter.meta,
+                    });
+                  initializationExprs.push(macro this.$parameterName = $i{parameterName});
+                  constructorArguments.push(
+                    {
+                      name: parameterName,
+                      opt: isOptional,
+                      type: t,
+                      value: e,
+                    });
+                  argumentExprs.push(macro $i{parameterName});
+                }
+                default:
+                {
+                  var p = PositionTools.getInfos(parameter.pos);
+                  throw new ExpectVar(p.min, p.max, p.file);
+                }
+              }
+            }
+            fields.push(
+              {
+                name: "new",
+                pos: pos0,
+                access: [ APublic ],
+                kind: FFun(
+                  {
+                    args: constructorArguments,
+                    ret: null,
+                    expr: { pos: pos0, expr: EBlock(initializationExprs) },
+                  })
+              });
+
+            for (i in 0...fieldBuilders.length)
+            {
+              var x = i + 2;
+              fieldBuilders[i](getCell(x), isDefaultItem, fields);
+            }
+            workbookModule.push(
+              {
                 pack: pack,
-                name: workbookName,
-                sub: worksheetName,
-              }),
-            fields: fields,
-          });
-        var itemPath =
-        {
-          pack: pack,
-          name: workbookName,
-          sub: itemId,
-        }
-
-        if (constructorArguments.empty())
-        {
-          baseItemFields.push(
+                name: itemId,
+                pos: pos0,
+                meta: classMeta,
+                kind: TDClass(
+                  if (isDefaultItem)
+                  {
+                    pack: pack,
+                    name: workbookName,
+                    sub: externalBridgeClassName,
+                  }
+                  else
+                  {
+                    pack: pack,
+                    name: workbookName,
+                    sub: worksheetName,
+                  }),
+                fields: fields,
+              });
+            var itemPath =
             {
-              name: 'get_$itemId',
-              pos: pos0,
-              access: [ AInline ],
-              meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
-              kind: FFun(
+              pack: pack,
+              name: workbookName,
+              sub: itemId,
+            }
+
+            if (constructorArguments.empty())
+            {
+              baseItemFields.push(
                 {
-                  ret: TPath(itemPath),
-                  args: [],
-                  expr: macro return $i{workbookName}.$itemId,
-                }),
-            });
-          baseItemFields.push(
-            {
-              name: itemId,
-              pos: pos0,
-              access: [ ],
-              meta: [ ],
-              kind: FProp("get", "never", TPath(itemPath), null)
-            });
-          mainClassFields.push(
-            {
-              name: itemId,
-              pos: pos0,
-              access: [ AStatic, APublic ],
-              meta: [ { name: ":final", pos: pos0 } ],
-              kind: FProp("default", "never", null, macro new $itemPath())
-            });
-        }
-        else
-        {
-          baseItemFields.push(
-            {
-              name: itemId,
-              pos: pos0,
-              access: [ AInline ],
-              meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
-              kind: FFun(
+                  name: 'get_$itemId',
+                  pos: pos0,
+                  access: [ AInline ],
+                  meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+                  kind: FFun(
+                    {
+                      ret: TPath(itemPath),
+                      args: [],
+                      expr: macro return $i{workbookName}.$itemId,
+                    }),
+                });
+              baseItemFields.push(
                 {
-                  ret: TPath(itemPath),
-                  args: constructorArguments,
-                  expr: macro return new $itemPath($a{argumentExprs}),
-                })
-            });
-          mainClassFields.push(
-            {
-              name: itemId,
-              pos: pos0,
-              access: [ AInline, AStatic, APublic ],
-              meta: [ { name: ":final", pos: pos0 } ],
-              kind: FFun(
+                  name: itemId,
+                  pos: pos0,
+                  access: [ ],
+                  meta: [ ],
+                  kind: FProp("get", "never", TPath(itemPath), null)
+                });
+              mainClassFields.push(
                 {
-                  ret: TPath(itemPath),
-                  args: constructorArguments,
-                  expr: macro return new $itemPath($a{argumentExprs}),
-                })
-            });
-        }
-      }
-
-      for (y in 1...csvData.length)
-      {
-        buildRow(csvData[y]);
-      }
-
-      if (!hasCustomBaseClass)
-      {
-        buildRow(null);
-      }
-
-      workbookModule.push(
-        {
-          pack: pack,
-          name: externalBridgeClassName,
-          pos: headPos,
-          isExtern: true,
-          meta:
-          [
+                  name: itemId,
+                  pos: pos0,
+                  access: [ AStatic, APublic ],
+                  meta: [ { name: ":final", pos: pos0 } ],
+                  kind: FProp("default", "never", null, macro new $itemPath())
+                });
+            }
+            else
             {
+              baseItemFields.push(
+                {
+                  name: itemId,
+                  pos: pos0,
+                  access: [ AInline ],
+                  meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+                  kind: FFun(
+                    {
+                      ret: TPath(itemPath),
+                      args: constructorArguments,
+                      expr: macro return new $itemPath($a{argumentExprs}),
+                    })
+                });
+              mainClassFields.push(
+                {
+                  name: itemId,
+                  pos: pos0,
+                  access: [ AInline, AStatic, APublic ],
+                  meta:
+                  [
+                    { name: ":final", pos: pos0 },
+                    { name: ":noUsing", pos: pos0 },
+                  ],
+                  kind: FFun(
+                    {
+                      ret: TPath(itemPath),
+                      args: constructorArguments,
+                      expr: macro return new $itemPath($a{argumentExprs}),
+                    })
+                });
+            }
+          }
+
+          for (y in 1...csvData.length)
+          {
+            buildRow(csvData[y]);
+          }
+
+          if (!hasCustomBaseClass)
+          {
+            buildRow(null);
+          }
+
+          workbookModule.push(
+            {
+              pack: pack,
+              name: externalBridgeClassName,
               pos: headPos,
-              name: ":native",
-              params:
+              isExtern: true,
+              meta:
               [
                 {
-                  expr: EConst(CString(pack.concat([ bridgeClassName ]).join("."))),
                   pos: headPos,
+                  name: ":native",
+                  params:
+                  [
+                    {
+                      expr: EConst(CString(pack.concat([ bridgeClassName ]).join("."))),
+                      pos: headPos,
+                    }
+                  ],
+                },
+                {
+                  pos: headPos,
+                  name: ":nativeGen",
                 }
               ],
-            },
-            {
-              pos: headPos,
-              name: ":nativeGen",
-            }
-          ],
-          kind: TDClass(
-            {
-              pack: pack,
-              name: workbookName,
-              sub: baseClassName,
-            }),
-          fields: externalBridgeFields,
-        });
-      workbookModule.push(
-        {
-          pack: pack,
-          name: bridgeClassName,
-          pos: headPos,
-          meta:
-          [
-            {
-              pos: headPos,
-              name: ":nativeGen",
-            }
-          ],
-          kind: TDClass(
+              kind: TDClass(
+                {
+                  pack: pack,
+                  name: workbookName,
+                  sub: baseClassName,
+                }),
+              fields: externalBridgeFields,
+            });
+          workbookModule.push(
             {
               pack: pack,
-              name: workbookName,
-              sub: baseClassName,
-            }),
-          fields: bridgeFields,
-        });
+              name: bridgeClassName,
+              pos: headPos,
+              meta:
+              [
+                {
+                  pos: headPos,
+                  name: ":nativeGen",
+                }
+              ],
+              kind: TDClass(
+                {
+                  pack: pack,
+                  name: workbookName,
+                  sub: baseClassName,
+                }),
+              fields: bridgeFields,
+            });
+        }
+      }
     }
-
     [
       for (fullModuleName in workbookModules.keys())
       {
@@ -967,6 +1046,9 @@ class Importer
         {
           modulePath: fullModuleName,
           types: workbookModules.get(fullModuleName),
+          #if using_worksheet 
+          usings: workbookUsings.get(fullModuleName),
+          #end
         }
       }
     ];
