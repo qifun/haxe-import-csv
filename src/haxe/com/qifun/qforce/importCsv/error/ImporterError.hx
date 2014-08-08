@@ -92,6 +92,20 @@ class ExpectStringLiteral extends ImporterError
 
 }
 
+class ExpectTypePath extends ImporterError
+{
+
+  override function get_message() return Translator.translate("Expected TypePath");
+
+}
+
+class ExpectImportExpr extends ImporterError
+{
+
+  override function get_message() return Translator.translate("Expected ImportExpr");
+
+}
+
 class ExpectVar extends ImporterError
 {
 

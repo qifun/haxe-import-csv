@@ -177,9 +177,15 @@ class Importer
     {
       //for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
       #if using_worksheet
-      Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types, moduleDefinition.usings);
+      Context.defineModule(
+        moduleDefinition.modulePath,
+        moduleDefinition.types,
+        moduleDefinition.imports,
+        moduleDefinition.usings);
       #else
-      Context.defineModule(moduleDefinition.modulePath, moduleDefinition.types);
+      Context.defineModule(
+        moduleDefinition.modulePath,
+        moduleDefinition.types);
       #end
     }
   }
@@ -356,11 +362,18 @@ class Importer
 
   static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
+  static var IMPORT_EREG(default, never) = ~/^(\xEF\xBB\xBF)?\s*(([a-zA-Z0-9_]+|\s*\.\s*)+)((\.\s*\*\s*)|\s+in\s+([a-zA-Z0-9_]*)\s*)?\s*$/;
+
+  static var USING_EREG(default, never) = ~/^(\xEF\xBB\xBF)?\s*(([a-z][a-zA-Z0-9_]*(\s*\.\s*[a-z][a-zA-Z0-9_]*)*)\s*\.)?\s*([A-Z][a-zA-Z0-9_]*)\s*(\.\s*([A-Z][a-zA-Z0-9_]*))?\s*$/;
+
+  static var DOT_EREG(default, never) = ~/\s*\.\s*/g;
+
   public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>):Iterable<
     {
       var modulePath(default, never):String;
       var types(default, never):Array<TypeDefinition>;
       #if using_worksheet
+      var imports(default, never):Array<ImportExpr>;
       var usings(default, never):Array<TypePath>;
       #end
     }> return
@@ -369,6 +382,7 @@ class Importer
     var baseItemFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
     #if using_worksheet
+    var workbookImports = new StringMap<Array<ImportExpr>>();
     var workbookUsings = new StringMap<Array<TypePath>>();
     #end
     for (csvEntry in csvEntries)
@@ -381,6 +395,65 @@ class Importer
       switch (csvEntry.worksheetName)
       {
         #if using_worksheet
+        case "import":
+        {
+          var imports:Array<ImportExpr> = [];
+          for (row in csvEntry.data)
+          {
+            for (cell in row)
+            {
+              switch (cell.content)
+              {
+                case null, "":
+                {
+                  continue;
+                }
+                case importPath:
+                {
+                  if (IMPORT_EREG.match(importPath))
+                  {
+                    imports.push(
+                      {
+                        path:
+                        [
+                          for (name in DOT_EREG.split(IMPORT_EREG.matched(2)))
+                          {
+                            pos: PositionTools.here(),
+                            name: name,
+                          }
+                        ],
+                        mode: switch ([IMPORT_EREG.matched(5), IMPORT_EREG.matched(6)])
+                        {
+                          case [ null, null ]:
+                          {
+                            ImportMode.INormal;
+                          }
+                          case [ null, alias ]:
+                          {
+                            ImportMode.IAsName(alias);
+                          }
+                          case [ _, null ]:
+                          {
+                            ImportMode.IAll;
+                          }
+                          default:
+                          {
+                            throw "Cannot match both IAsName as IAll";
+                          }
+                        }
+                      });
+                  }
+                  else
+                  {
+                    throw new ExpectImportExpr(cell.positionMin, cell.positionMax, csvFileName);
+                  }
+                }
+              }
+            }
+          }
+          workbookImports.set(fullModuleName, imports);
+          continue;
+        }
         case "using":
         {
           var usings:Array<TypePath> = [];
@@ -396,42 +469,22 @@ class Importer
                 }
                 case usingPath:
                 {
-                  if (usingPath.startsWith("\xEF\xBB\xBF"))
+                  if (USING_EREG.match(usingPath))
                   {
-                    usingPath = usingPath.substring(3);
-                  }
-                  switch (usingPath.split("."))
-                  {
-                    case [ name ]:
-                      usings.push(
+                    usings.push(
+                      {
+                        pack: switch (USING_EREG.matched(3))
                         {
-                          pack: [],
-                          name: name,
-                        });
-                    case pack:
-                    {
-                      var c = pack[pack.length - 2].charCodeAt(0);
-                      if (c >= "a".code && c <= "z".code)
-                      {
-                        var name = pack.pop();
-                        usings.push(
-                          {
-                            pack: pack,
-                            name: name,
-                          });
-                      }
-                      else
-                      {
-                        var sub = pack.pop();
-                        var name = pack.pop();
-                        usings.push(
-                          {
-                            pack: pack,
-                            sub: sub,
-                            name: name,
-                          });
-                      }
-                    }
+                          case null, "": [];
+                          case path: DOT_EREG.split(path);
+                        },
+                        name: USING_EREG.matched(5),
+                        sub: USING_EREG.matched(7),
+                      });
+                  }
+                  else
+                  {
+                    throw new ExpectTypePath(cell.positionMin, cell.positionMax, csvFileName);
                   }
                 }
               }
@@ -1046,7 +1099,8 @@ class Importer
         {
           modulePath: fullModuleName,
           types: workbookModules.get(fullModuleName),
-          #if using_worksheet 
+          #if using_worksheet
+          imports: workbookImports.get(fullModuleName),
           usings: workbookUsings.get(fullModuleName),
           #end
         }
