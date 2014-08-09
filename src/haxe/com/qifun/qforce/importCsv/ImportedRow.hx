@@ -45,7 +45,7 @@ class ImportedRowBuilder
 
   public static function build():Array<Field> return
   {
-    // TODO: 创建equals和hashCode函数
+    // TODO: 创建toString、equals和hashCode函数
     Context.getBuildFields();
   }
 

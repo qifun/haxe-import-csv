@@ -85,12 +85,59 @@ class Importer
           var isFirstType = true;
           for (type in moduleDefinition.types)
           {
-            output.writeString(new Printer().printTypeDefinition(type, isFirstType));
-            output.writeByte("\n".code);
             if (isFirstType)
             {
               isFirstType = false;
+              output.writeString("package ");
+              output.writeString(type.pack.join("."));
+              output.writeString(";\n");
+              #if using_worksheet
+              for (importExpr in moduleDefinition.imports)
+              {
+                switch (importExpr.mode)
+                {
+                  case INormal:
+                  {
+                    output.writeString("import ");
+                    output.writeString(importExpr.path.map(function(field) return field.name).join("."));
+                    output.writeString(";\n");
+                  }
+                  case IAsName(alias):
+                  {
+                    output.writeString("import ");
+                    output.writeString(importExpr.path.map(function(field) return field.name).join("."));
+                    output.writeString("as");
+                    output.writeString(alias);
+                    output.writeString(";\n");
+                  }
+                  case IAll:
+                  {
+                    output.writeString("import ");
+                    output.writeString(importExpr.path.map(function(field) return field.name).join("."));
+                    output.writeString(".*;\n");
+                  }
+                }
+
+              }
+              for (usingPath in moduleDefinition.usings)
+              {
+                output.writeString("using ");
+                for (field in usingPath.pack)
+                {
+                  output.writeString(field);
+                  output.writeString(",");
+                }
+                output.writeString(usingPath.name);
+                if (usingPath.sub != null)
+                {
+                  output.writeString(".");
+                  output.writeString(usingPath.sub);
+                }
+              }
+              #end
             }
+            output.writeString(new Printer().printTypeDefinition(type, false));
+            output.writeByte("\n".code);
           }
         }
         catch (e:Dynamic)
@@ -1096,12 +1143,14 @@ class Importer
       for (fullModuleName in workbookModules.keys())
       {
         var workbookModule = workbookModules.get(fullModuleName);
+        var imports = workbookImports.get(fullModuleName);
+        var usings = workbookUsings.get(fullModuleName);
         {
           modulePath: fullModuleName,
-          types: workbookModules.get(fullModuleName),
+          types: workbookModule,
           #if using_worksheet
-          imports: workbookImports.get(fullModuleName),
-          usings: workbookUsings.get(fullModuleName),
+          imports: imports == null ? [] : imports,
+          usings: usings == null ? [] : usings,
           #end
         }
       }
