@@ -22,7 +22,7 @@
   </classpaths>
   <!-- Build options -->
   <build>
-    <option directives="locale=zh_CN.GBK&#xA;scala_properties" />
+    <option directives="locale=zh_CN.GBK&#xA;scala_properties&#xA;using_worksheet" />
     <option flashStrict="False" />
     <option noInlineOnDebug="False" />
     <option mainClass="com.qifun.qforce.importCsv.ImporterTest" />
