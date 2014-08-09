@@ -65,13 +65,6 @@ class IdCellParser
                 Context.error(Translator.translate("Expect identify"), pos);
               }
             }
-            //var worksheetComplexType = TPath(
-              //{
-                //pack: workbookPack,
-                //name: workbookName.substring(workbookName.lastIndexOf(".") + 1),
-                //sub: worksheetName,
-              //});
-            //macro new com.qifun.qforce.importCsv.Id<$worksheetComplexType>($expr);
             expr;
           }
           default:
