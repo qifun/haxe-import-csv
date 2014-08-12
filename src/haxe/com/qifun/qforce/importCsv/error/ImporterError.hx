@@ -114,10 +114,10 @@ class ExpectVar extends ImporterError
 }
 
 @:final
-class ExpectMetaOrItemId extends ImporterError
+class ExpectMetaOrRowId extends ImporterError
 {
 
-  override function get_message() return Translator.translate("Expected `@meta` or `ItemId`");
+  override function get_message() return Translator.translate("Expected `@meta` or `RowId`");
 
 }
 

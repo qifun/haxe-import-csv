@@ -352,7 +352,7 @@ class Importer
     }
   }
 
-  static function parseItemId(
+  static function parseRowId(
     content:String,
     fileName:String,
     positionMin:Int,
@@ -365,7 +365,7 @@ class Importer
         max: positionMax,
         file: fileName,
       }));
-    function extractItemId(expr0:Expr):String return
+    function extractRowId(expr0:Expr):String return
     {
       switch (expr0)
       {
@@ -376,11 +376,11 @@ class Importer
         case { pos: _, expr: EMeta(s, e) } :
         {
           classMeta.push(s);
-          extractItemId(e);
+          extractRowId(e);
         }
         case { pos: PositionTools.getInfos(_) => p } :
         {
-          throw new ExpectMetaOrItemId(
+          throw new ExpectMetaOrRowId(
             Std.int(Math.max(p.min, positionMin)),
             Std.int(Math.min(p.max, positionMax)),
             fileName);
@@ -391,7 +391,7 @@ class Importer
     {
       case { pos: _, expr: EBinop(Binop.OpSub, idOrMeta, { pos: _, expr: EConst(CIdent("_")) } ) }:
       {
-        extractItemId(idOrMeta);
+        extractRowId(idOrMeta);
       }
       case { pos: _, expr: EUnop(Unop.OpNeg, false, { pos: _, expr: EConst(CIdent("_")) } ) }:
       {
@@ -399,7 +399,7 @@ class Importer
       }
       case { pos: PositionTools.getInfos(_) => p } :
       {
-        throw new ExpectMetaOrItemId(
+        throw new ExpectMetaOrRowId(
           Std.int(Math.max(p.min, positionMin)),
           Std.int(Math.min(p.max, positionMax)),
           fileName);
@@ -426,7 +426,7 @@ class Importer
     }> return
   {
     var mainClassFieldsByModule = new StringMap<Array<Field>>();
-    var baseItemFieldsByModule = new StringMap<Array<Field>>();
+    var baseRowFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
     #if using_worksheet
     var workbookImports = new StringMap<Array<ImportExpr>>();
@@ -558,19 +558,19 @@ class Importer
             }
           }
           var mainClassFields:Array<Field>;
-          var baseItemFields:Array<Field>;
+          var baseRowFields:Array<Field>;
           var workbookModule:Array<TypeDefinition>;
           if (workbookModules.exists(fullModuleName))
           {
             mainClassFields = mainClassFieldsByModule.get(fullModuleName);
-            baseItemFields = baseItemFieldsByModule.get(fullModuleName);
+            baseRowFields = baseRowFieldsByModule.get(fullModuleName);
             workbookModule = workbookModules.get(fullModuleName);
           }
           else
           {
             mainClassFields = [];
             mainClassFieldsByModule.set(fullModuleName, mainClassFields);
-            baseItemFields =
+            baseRowFields =
             [
               {
                 name: "new",
@@ -584,7 +584,7 @@ class Importer
                   }),
               }
             ];
-            baseItemFieldsByModule.set(fullModuleName, baseItemFields);
+            baseRowFieldsByModule.set(fullModuleName, baseRowFields);
             workbookModule = [];
             workbookModule.push(
             {
@@ -619,7 +619,7 @@ class Importer
                   pos: PositionTools.here(),
                 }
               ],
-              fields: baseItemFields,
+              fields: baseRowFields,
             });
             workbookModules.set(fullModuleName, workbookModule);
           }
@@ -698,11 +698,11 @@ class Importer
                   // 无需生成桥接代码
                 }
               }
-              fieldBuilders[builderIndex] = function(cell:CsvCell, isDefaultItem:Bool, fieldOutput:Array<Field>):Void
+              fieldBuilders[builderIndex] = function(cell:CsvCell, isDefaultRow:Bool, fieldOutput:Array<Field>):Void
               {
                 var cellExpr = switch (cell.content)
                 {
-                  case null, "" if (!isDefaultItem):
+                  case null, "" if (!isDefaultRow):
                   {
                     // 无需设置，使用默认值即可
                     return;
@@ -730,7 +730,7 @@ class Importer
                     {
                       newAccess.push(APublic);
                     }
-                    if (sourceField.kind.match(FFun(_)) && !isDefaultItem)
+                    if (sourceField.kind.match(FFun(_)) && !isDefaultRow)
                     {
                       newAccess.push(AOverride);
                     }
@@ -770,7 +770,7 @@ class Importer
                   {
                     var fieldName = sourceField.name;
                     var underlyingFieldName = '_$fieldName';
-                    if (isDefaultItem)
+                    if (isDefaultRow)
                     {
                       fieldOutput.push(
                         {
@@ -874,24 +874,24 @@ class Importer
                 pos: pos0,
               },
             ];
-            var itemId = if (row == null)
+            var rowId = if (row == null)
             {
               worksheetName;
             }
             else
             {
-              parseItemId(cell0.content, csvFileName, cell0.positionMin, cell0.positionMax, classMeta);
+              parseRowId(cell0.content, csvFileName, cell0.positionMin, cell0.positionMax, classMeta);
             }
-            if (itemId == null)
+            if (rowId == null)
             {
               return;
             }
-            var isDefaultItem = itemId == worksheetName;
-            if (isDefaultItem)
+            var isDefaultRow = rowId == worksheetName;
+            if (isDefaultRow)
             {
               hasCustomBaseClass = true;
             }
-            if (isDefaultItem)
+            if (isDefaultRow)
             {
               classMeta.push({ name: ":bridgeProperties", pos: pos0 });
             }
@@ -977,16 +977,16 @@ class Importer
             for (i in 0...fieldBuilders.length)
             {
               var x = i + 2;
-              fieldBuilders[i](getCell(x), isDefaultItem, fields);
+              fieldBuilders[i](getCell(x), isDefaultRow, fields);
             }
             workbookModule.push(
               {
                 pack: pack,
-                name: itemId,
+                name: rowId,
                 pos: pos0,
                 meta: classMeta,
                 kind: TDClass(
-                  if (isDefaultItem)
+                  if (isDefaultRow)
                   {
                     pack: pack,
                     name: workbookName,
@@ -1000,63 +1000,63 @@ class Importer
                   }),
                 fields: fields,
               });
-            var itemPath =
+            var rowPath =
             {
               pack: pack,
               name: workbookName,
-              sub: itemId,
+              sub: rowId,
             }
 
             if (constructorArguments.empty())
             {
-              baseItemFields.push(
+              baseRowFields.push(
                 {
-                  name: 'get_$itemId',
+                  name: 'get_$rowId',
                   pos: pos0,
                   access: [ AInline ],
                   meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
                   kind: FFun(
                     {
-                      ret: TPath(itemPath),
+                      ret: TPath(rowPath),
                       args: [],
-                      expr: macro return $i{workbookName}.$itemId,
+                      expr: macro return $i{workbookName}.$rowId,
                     }),
                 });
-              baseItemFields.push(
+              baseRowFields.push(
                 {
-                  name: itemId,
+                  name: rowId,
                   pos: pos0,
                   access: [ ],
                   meta: [ ],
-                  kind: FProp("get", "never", TPath(itemPath), null)
+                  kind: FProp("get", "never", TPath(rowPath), null)
                 });
               mainClassFields.push(
                 {
-                  name: itemId,
+                  name: rowId,
                   pos: pos0,
                   access: [ AStatic, APublic ],
                   meta: [ { name: ":final", pos: pos0 } ],
-                  kind: FProp("default", "never", null, macro new $itemPath())
+                  kind: FProp("default", "never", null, macro new $rowPath())
                 });
             }
             else
             {
-              baseItemFields.push(
+              baseRowFields.push(
                 {
-                  name: itemId,
+                  name: rowId,
                   pos: pos0,
                   access: [ AInline ],
                   meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
                   kind: FFun(
                     {
-                      ret: TPath(itemPath),
+                      ret: TPath(rowPath),
                       args: constructorArguments,
-                      expr: macro return new $itemPath($a{argumentExprs}),
+                      expr: macro return new $rowPath($a{argumentExprs}),
                     })
                 });
               mainClassFields.push(
                 {
-                  name: itemId,
+                  name: rowId,
                   pos: pos0,
                   access: [ AInline, AStatic, APublic ],
                   meta:
@@ -1066,9 +1066,9 @@ class Importer
                   ],
                   kind: FFun(
                     {
-                      ret: TPath(itemPath),
+                      ret: TPath(rowPath),
                       args: constructorArguments,
-                      expr: macro return new $itemPath($a{argumentExprs}),
+                      expr: macro return new $rowPath($a{argumentExprs}),
                     })
                 });
             }
