@@ -1144,8 +1144,10 @@ class Importer
       for (fullModuleName in workbookModules.keys())
       {
         var workbookModule = workbookModules.get(fullModuleName);
+        #if using_worksheet
         var imports = workbookImports.get(fullModuleName);
         var usings = workbookUsings.get(fullModuleName);
+        #end
         {
           modulePath: fullModuleName,
           types: workbookModule,
