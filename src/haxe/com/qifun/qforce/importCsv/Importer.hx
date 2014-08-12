@@ -899,6 +899,7 @@ class Importer
             else
             {
               classMeta.push({ name: ":final", pos: pos0 });
+              classMeta.push({ name: ":worksheetRow", pos: pos0 });
             }
             var cell1 = getCell(1);
             var parameters = parseParameters(cell1.content, csvFileName, cell1.positionMin, cell1.positionMax);
