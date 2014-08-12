@@ -894,6 +894,7 @@ class Importer
             if (isDefaultItem)
             {
               classMeta.push({ name: ":bridgeProperties", pos: pos0 });
+              classMeta.push({ name: ":worksheetDefaultItem", pos: pos0 });
             }
             else
             {
