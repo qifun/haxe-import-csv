@@ -24,9 +24,8 @@ import haxe.macro.*;
 @:nativeGen
 @:autoBuild(com.qifun.qforce.importCsv.ImportedRow.ImportedRowBuilder.build())
 class ImportedRow
+#if java extends java.lang.Object implements java.internal.IEquatable #end
 {
-
-  inline function new() {}
 
   var y(get, never):Bool;
 
