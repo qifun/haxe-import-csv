@@ -25,7 +25,11 @@ import haxe.macro.MacroStringTools;
 @:nativeGen
 @:autoBuild(com.qifun.qforce.importCsv.ImportedRow.ImportedRowBuilder.build())
 class ImportedRow
-#if java extends java.lang.Object implements java.internal.IEquatable #end
+#if java
+extends java.lang.Object implements java.internal.IEquatable
+#elseif cs
+extends cs.system.Object
+#end
 {
 
   var y(get, never):Bool;
@@ -63,53 +67,123 @@ class ImportedRowBuilder
       return fields;
     
     var toStringDefExpr = macro function():String return $ { toStringExprMaker() };
-    fields.push( {
-      name: "toString",
-      doc: null,
-      meta: [{ name: ":overload", pos: Context.currentPos() }],
-      access: [APublic, AOverride],
-      kind: FFun(switch(toStringDefExpr.expr) {
-        case EFunction(_, f):f;
-        default: throw "Unreachable code!";
-      }),
-      pos: Context.currentPos() 
-    });
-    
-    var hashCodeExpr = macro function():Int
+    if (Context.defined("java"))
     {
-      var str = toString();
-      var hash = str.length;
-      var i = -1;
-      while (++i < str.length)
-      {
-        hash = (hash << 5) ^ (hash >> 27) ^ str.charCodeAt(i) ;
-      }
-      return hash;
+      fields.push( {
+        name: "toString",
+        doc: null,
+        meta: [{ name: ":overload", pos: Context.currentPos() }],
+        access: [APublic, AOverride],
+        kind: FFun(switch(toStringDefExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos() 
+      });
     }
-    fields.push( {
-      name: "hashCode",
-      doc: null,
-      meta: [{ name: ":overload", pos: Context.currentPos() }],
-      access: [APublic, AOverride],
-      kind: FFun(switch(hashCodeExpr.expr) {
-        case EFunction(_, f):f;
-        default: throw "Unreachable code!";
-      }),
-      pos: Context.currentPos()
-    });
+    else if (Context.defined("cs"))
+    {
+        fields.push( {
+        name: "ToString",
+        doc: null,
+        meta: [{ name: ":overload", pos: Context.currentPos() }],
+        access: [APublic],
+        kind: FFun(switch(toStringDefExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos() 
+      });
+    }
+    var hashCodeExpr:Expr;
+    if (haxe.macro.Context.defined("java"))
+    {
+      hashCodeExpr = macro function():Int
+      {
+        var str = toString();
+        var hash = str.length;
+        var i = -1;
+        while (++i < str.length)
+        {
+          hash = (hash << 5) ^ (hash >> 27) ^ str.charCodeAt(i) ;
+        }
+        return hash;
+      }
+    }
+    else if (haxe.macro.Context.defined("cs"))
+    {
+      hashCodeExpr = macro function():Int
+      {
+        var str = ToString();
+        var hash = str.length;
+        var i = -1;
+        while (++i < str.length)
+        {
+          hash = (hash << 5) ^ (hash >> 27) ^ str.charCodeAt(i) ;
+        }
+        return hash;
+      }
+    }
     
+    if (Context.defined("java"))
+    {
+      fields.push( {
+        name: "hashCode",
+        doc: null,
+        meta: [{ name: ":overload", pos: Context.currentPos() }],
+        access: [APublic, AOverride],
+        kind: FFun(switch(hashCodeExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos()
+      });
+    }
+    else if (Context.defined("cs"))
+    {
+        fields.push( {
+        name: "GetHashCode",
+        doc: null,
+        meta: [],
+        access: [APublic],
+        kind: FFun(switch(hashCodeExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos()
+      });
+    }
     var equalsExpr = equalsExprMaker();
-    fields.push( {
-      name: "equals",
-      doc: null,
-      meta: [{ name: ":overload", pos: Context.currentPos() }],
-      access: [APublic, AOverride],
-      kind: FFun(switch(equalsExpr.expr) {
-        case EFunction(_, f):f;
-        default: throw "Unreachable code!";
-      }),
-      pos: Context.currentPos()
-    });
+    
+    if (Context.defined("java"))
+    {
+      fields.push( {
+        name: "equals",
+        doc: null,
+        meta: [{ name: ":overload", pos: Context.currentPos() }],
+        access: [APublic, AOverride],
+        kind: FFun(switch(equalsExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos()
+      });
+    }
+    else if (Context.defined("cs"))
+    {
+      fields.push( {
+        name: "Equals",
+        doc: null,
+        meta: [],
+        access: [APublic],
+        kind: FFun(switch(equalsExpr.expr) {
+          case EFunction(_, f):f;
+          default: throw "Unreachable code!";
+        }),
+        pos: Context.currentPos()
+      });
+    }
+    
     fields;
   }
   
@@ -138,19 +212,38 @@ class ImportedRowBuilder
         }
         
         var isFirst:Bool = true;
-        for (arg in constructFunction.args)
+        if (Context.defined("java"))
         {
-          var fieldName = arg.name;
-          if (isFirst)
+          for (arg in constructFunction.args)
           {
-            compareExpr = macro ($i { fieldName} == o.$fieldName );
-            isFirst = false;
-          }
-          else
+            var fieldName = arg.name;
+            if (isFirst)
+            {
+              compareExpr = macro ($i { fieldName} == o.$fieldName );
+              isFirst = false;
+            }
+            else
+            {
+              compareExpr = macro $compareExpr && ($i { fieldName} == o.$fieldName );
+            }
+          }  
+        }
+        else if(Context.defined("cs"))
+        {
+          for (arg in constructFunction.args)
           {
-            compareExpr = macro $compareExpr && ($i { fieldName} == o.$fieldName );
-          }
-        }  
+            var fieldName = arg.name;
+            if (isFirst)
+            {
+              compareExpr = macro cs.internal.Runtime.eq($i { fieldName} , o.$fieldName );
+              isFirst = false;
+            }
+            else
+            {
+              compareExpr = macro $compareExpr && cs.internal.Runtime.eq($i { fieldName} , o.$fieldName );
+            }
+          }  
+        }
         break;
       }
     }
