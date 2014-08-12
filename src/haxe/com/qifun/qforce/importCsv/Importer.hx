@@ -570,20 +570,7 @@ class Importer
           {
             mainClassFields = [];
             mainClassFieldsByModule.set(fullModuleName, mainClassFields);
-            baseRowFields =
-            [
-              {
-                name: "new",
-                pos: PositionTools.here(),
-                access: [ APrivate, AInline ],
-                kind: FFun(
-                  {
-                    args: [],
-                    ret: null,
-                    expr: macro null,
-                  }),
-              }
-            ];
+            baseRowFields = [];
             baseRowFieldsByModule.set(fullModuleName, baseRowFields);
             workbookModule = [];
             workbookModule.push(

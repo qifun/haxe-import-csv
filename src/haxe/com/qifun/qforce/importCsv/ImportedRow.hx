@@ -26,6 +26,8 @@ import haxe.macro.*;
 class ImportedRow
 {
 
+  inline function new() {}
+
   var y(get, never):Bool;
 
   @:protected
