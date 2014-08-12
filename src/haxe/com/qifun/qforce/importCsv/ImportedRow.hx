@@ -19,7 +19,8 @@
 
 package com.qifun.qforce.importCsv;
 import haxe.macro.Expr;
-import haxe.macro.*;
+import haxe.macro.Context;
+import haxe.macro.MacroStringTools;
 
 @:nativeGen
 @:autoBuild(com.qifun.qforce.importCsv.ImportedRow.ImportedRowBuilder.build())
@@ -44,12 +45,172 @@ class ImportedRow
 class ImportedRowBuilder
 {
 
-  public static function build():Array<Field> return
+  macro public static function build():Array<Field> return
   {
     // TODO: 创建toString、equals和hashCode函数
-    Context.getBuildFields();
+    var fields = Context.getBuildFields();
+    var classType = Context.getLocalClass().get();
+    var isWorkSheetRow:Bool = false;
+    for (metaDate in classType.meta.get())
+    {
+      if (metaDate.name == ":worksheetRow")
+      {
+        isWorkSheetRow = true;
+        break;
+      }
+    }
+    if (!isWorkSheetRow)
+      return fields;
+    
+    var toStringDefExpr = macro function():String return $ { toStringExprMaker() };
+    fields.push( {
+      name: "toString",
+      doc: null,
+      meta: [{ name: ":overload", pos: Context.currentPos() }],
+      access: [APublic, AOverride],
+      kind: FFun(switch(toStringDefExpr.expr) {
+        case EFunction(_, f):f;
+        default: throw "Unreachable code!";
+      }),
+      pos: Context.currentPos() 
+    });
+    
+    var hashCodeExpr = macro function():Int
+    {
+      var str = toString();
+      var hash = str.length;
+      var i = -1;
+      while (++i < str.length)
+      {
+        hash = (hash << 5) ^ (hash >> 27) ^ str.charCodeAt(i) ;
+      }
+      return hash;
+    }
+    fields.push( {
+      name: "hashCode",
+      doc: null,
+      meta: [{ name: ":overload", pos: Context.currentPos() }],
+      access: [APublic, AOverride],
+      kind: FFun(switch(hashCodeExpr.expr) {
+        case EFunction(_, f):f;
+        default: throw "Unreachable code!";
+      }),
+      pos: Context.currentPos()
+    });
+    
+    var equalsExpr = equalsExprMaker();
+    fields.push( {
+      name: "equals",
+      doc: null,
+      meta: [{ name: ":overload", pos: Context.currentPos() }],
+      access: [APublic, AOverride],
+      kind: FFun(switch(equalsExpr.expr) {
+        case EFunction(_, f):f;
+        default: throw "Unreachable code!";
+      }),
+      pos: Context.currentPos()
+    });
+    fields;
   }
-
+  
+  private static inline function equalsExprMaker():Expr return
+  {
+    var fields = Context.getBuildFields();
+    var classPackPath = Context.getLocalClass().get().pack.copy();
+    classPackPath.push(Context.getLocalClass().get().name);
+    var classPathExpr = MacroStringTools.toFieldExpr(classPackPath);
+    var compareExpr:Expr = macro true;
+    
+    for (field in fields) 
+    {
+      if (field.name == "new")
+      {
+        var constructFunction = switch(field.kind)
+        {
+          case FFun(f):
+          {
+            f;
+          }
+          default: 
+          {
+            throw "Unreachable code!";
+          }
+        }
+        
+        var isFirst:Bool = true;
+        for (arg in constructFunction.args)
+        {
+          var fieldName = arg.name;
+          if (isFirst)
+          {
+            compareExpr = macro ($i { fieldName} == o.$fieldName );
+            isFirst = false;
+          }
+          else
+          {
+            compareExpr = macro $compareExpr && ($i { fieldName} == o.$fieldName );
+          }
+        }  
+        break;
+      }
+    }
+    
+    var equalsExpr = macro function(other:Dynamic):Bool return
+    {
+      var o = Std.instance((other), $classPathExpr);
+      if (o == null)
+      {
+        return false;
+      }
+      else
+      {
+        return $compareExpr;
+      }
+    }
+    
+    equalsExpr;
+  }
+  
+  private static inline function toStringExprMaker():Expr return
+  {
+    var fields = Context.getBuildFields();
+    var toStringExprBuilder:Expr = macro $v{Context.getLocalClass().get().name} + "(";
+    
+    for (field in fields) 
+    {
+      if (field.name == "new")
+      {
+        var constructFunction = switch(field.kind)
+        {
+          case FFun(f):
+          {
+            f;
+          }
+          default: 
+          {
+            throw "Unreachable code!";
+          }
+        }
+        
+        var isFirst:Bool = true;
+        for (arg in constructFunction.args)
+        {
+          if (isFirst)
+          {
+            toStringExprBuilder = macro $toStringExprBuilder + $v {arg.name} + "(" + Std.string( $i { arg.name } ) + ")";
+            isFirst = false;
+          }
+          else
+          {
+            toStringExprBuilder = macro $toStringExprBuilder + ", " + $v {arg.name} + "(" + Std.string( $i { arg.name } ) + ")";
+          }
+        }  
+        break;
+      }
+    }
+    macro $toStringExprBuilder + ")";
+  }
+  
 }
 #end
 
