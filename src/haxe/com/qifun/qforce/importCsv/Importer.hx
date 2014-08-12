@@ -894,6 +894,7 @@ class Importer
             if (isDefaultRow)
             {
               classMeta.push({ name: ":bridgeProperties", pos: pos0 });
+              classMeta.push({ name: ":worksheetDefaultItem", pos: pos0 });
             }
             else
             {
@@ -1143,8 +1144,10 @@ class Importer
       for (fullModuleName in workbookModules.keys())
       {
         var workbookModule = workbookModules.get(fullModuleName);
+        #if using_worksheet
         var imports = workbookImports.get(fullModuleName);
         var usings = workbookUsings.get(fullModuleName);
+        #end
         {
           modulePath: fullModuleName,
           types: workbookModule,
