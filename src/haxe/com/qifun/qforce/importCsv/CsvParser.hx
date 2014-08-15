@@ -18,6 +18,8 @@
  */
 
 package com.qifun.qforce.importCsv;
+
+import com.qifun.qforce.importCsv.error.CsvParserError;
 import haxe.io.BytesOutput;
 import haxe.io.Eof;
 import haxe.io.Input;
@@ -29,6 +31,7 @@ typedef CsvCell =
   positionMin: Int,
   positionMax: Int,
 }
+
 typedef CsvRow = Array<CsvCell>;
 
 typedef CsvTable = Array<CsvRow>;
@@ -41,42 +44,6 @@ private enum CsvToken
   CRLF;
   COMMA;
   EOF;
-}
-
-class CsvParserError
-{
-
-  @:allow(com.qifun.qforce.importCsv.CsvParser)
-  function new(positionMin:Int, positionMax:Int)
-  {
-    this.positionMin = positionMin;
-    this.positionMax = positionMax;
-  }
-
-  public var positionMin(default, null):Int;
-
-  public var positionMax(default, null):Int;
-
-  public var message(get, never):String;
-
-  function get_message() return "CSV parser error";
-
-}
-
-@:final
-private class UnexpectedEof extends CsvParserError
-{
-
-  override function get_message() return "Unexpected <end of file>";
-
-}
-
-@:final
-private class UnexpectedCell extends CsvParserError
-{
-
-  override function get_message() return "Expected CRLF or \",\"";
-
 }
 
 class CsvParser
