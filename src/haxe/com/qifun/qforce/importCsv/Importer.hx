@@ -543,7 +543,7 @@ class Importer
         #end
         case worksheetName:
         {
-          var baseClassName = workbookName + "_Base";
+          var baseClassName = workbookName + "_Row";
           var externalBridgeClassName = worksheetName + "_ExternalBridge";
           var bridgeClassName = worksheetName + "_Bridge";
           var moduleExpr = switch (MacroStringTools.toFieldExpr(pack))
@@ -1003,7 +1003,12 @@ class Importer
                   name: 'get_$rowId',
                   pos: pos0,
                   access: [ AInline ],
-                  meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+                  meta:
+                  [
+                    { name: ":final", pos: pos0 },
+                    { name: ":protected", pos: pos0 },
+                    { name: ":extern", pos: pos0 }
+                  ],
                   kind: FFun(
                     {
                       ret: TPath(rowPath),
@@ -1035,7 +1040,12 @@ class Importer
                   name: rowId,
                   pos: pos0,
                   access: [ AInline ],
-                  meta: [ { name: ":final", pos: pos0 }, { name: ":protected", pos: pos0 } ],
+                  meta:
+                  [
+                    { name: ":final", pos: pos0 },
+                    { name: ":protected", pos: pos0 },
+                    { name: ":extern", pos: pos0 }
+                  ],
                   kind: FFun(
                     {
                       ret: TPath(rowPath),
