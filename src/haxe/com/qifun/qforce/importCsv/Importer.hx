@@ -683,6 +683,10 @@ class Importer
                     {
                       pos: headCellPos,
                       name: fieldName,
+                      meta:
+                      [
+                        { pos: headCellPos, name: ":noCompletion" },
+                      ],
                       kind: FFun(
                         {
                           args: [],
