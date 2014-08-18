@@ -46,6 +46,8 @@ extends cs.system.Object
 }
 
 #if macro
+
+@:dox(hide)
 class ImportedRowBuilder
 {
 
@@ -65,7 +67,7 @@ class ImportedRowBuilder
     }
     if (!isWorkSheetRow)
       return fields;
-    
+
     var toStringDefExpr = macro function():String return $ { toStringExprMaker() };
     if (Context.defined("java"))
     {
@@ -78,7 +80,7 @@ class ImportedRowBuilder
           case EFunction(_, f):f;
           default: throw "Unreachable code!";
         }),
-        pos: Context.currentPos() 
+        pos: Context.currentPos()
       });
     }
     else if (Context.defined("cs"))
@@ -92,7 +94,7 @@ class ImportedRowBuilder
           case EFunction(_, f):f;
           default: throw "Unreachable code!";
         }),
-        pos: Context.currentPos() 
+        pos: Context.currentPos()
       });
     }
     var hashCodeExpr:Expr;
@@ -124,7 +126,7 @@ class ImportedRowBuilder
         return hash;
       }
     }
-    
+
     if (Context.defined("java"))
     {
       fields.push( {
@@ -154,7 +156,7 @@ class ImportedRowBuilder
       });
     }
     var equalsExpr = equalsExprMaker();
-    
+
     if (Context.defined("java"))
     {
       fields.push( {
@@ -183,10 +185,10 @@ class ImportedRowBuilder
         pos: Context.currentPos()
       });
     }
-    
+
     fields;
   }
-  
+
   private static inline function equalsExprMaker():Expr return
   {
     var fields = Context.getBuildFields();
@@ -194,8 +196,8 @@ class ImportedRowBuilder
     classPackPath.push(Context.getLocalClass().get().name);
     var classPathExpr = MacroStringTools.toFieldExpr(classPackPath);
     var compareExpr:Expr = macro true;
-    
-    for (field in fields) 
+
+    for (field in fields)
     {
       if (field.name == "new")
       {
@@ -205,12 +207,12 @@ class ImportedRowBuilder
           {
             f;
           }
-          default: 
+          default:
           {
             throw "Unreachable code!";
           }
         }
-        
+
         var isFirst:Bool = true;
         if (Context.defined("java"))
         {
@@ -226,7 +228,7 @@ class ImportedRowBuilder
             {
               compareExpr = macro $compareExpr && ($i { fieldName} == o.$fieldName );
             }
-          }  
+          }
         }
         else if(Context.defined("cs"))
         {
@@ -242,12 +244,12 @@ class ImportedRowBuilder
             {
               compareExpr = macro $compareExpr && cs.internal.Runtime.eq($i { fieldName} , o.$fieldName );
             }
-          }  
+          }
         }
         break;
       }
     }
-    
+
     var equalsExpr = macro function(other:Dynamic):Bool return
     {
       var o = Std.instance((other), $classPathExpr);
@@ -260,16 +262,16 @@ class ImportedRowBuilder
         return $compareExpr;
       }
     }
-    
+
     equalsExpr;
   }
-  
+
   private static inline function toStringExprMaker():Expr return
   {
     var fields = Context.getBuildFields();
     var toStringExprBuilder:Expr = macro $v{Context.getLocalClass().get().name} + "(";
-    
-    for (field in fields) 
+
+    for (field in fields)
     {
       if (field.name == "new")
       {
@@ -279,12 +281,12 @@ class ImportedRowBuilder
           {
             f;
           }
-          default: 
+          default:
           {
             throw "Unreachable code!";
           }
         }
-        
+
         var isFirst:Bool = true;
         for (arg in constructFunction.args)
         {
@@ -297,13 +299,13 @@ class ImportedRowBuilder
           {
             toStringExprBuilder = macro $toStringExprBuilder + ", " + $v {arg.name} + "(" + Std.string( $i { arg.name } ) + ")";
           }
-        }  
+        }
         break;
       }
     }
     macro $toStringExprBuilder + ")";
   }
-  
+
 }
 #end
 
