@@ -646,10 +646,15 @@ class Importer
                 {
                   var fieldName = sourceField.name;
                   var getterName = 'get_$fieldName';
+                  // The getter method in Haxe.
                   externalBridgeFields.push(
                     {
                       pos: headCellPos,
                       name: getterName,
+                      meta:
+                      [
+                        { pos: headCellPos, name: ":noCompletion" },
+                      ],
                       kind: FFun(
                         {
                           args: [],
@@ -657,10 +662,15 @@ class Importer
                           expr: null,
                         }),
                     });
+                  // The getter method in Haxe.
                   bridgeFields.push(
                     {
                       pos: headCellPos,
                       name: getterName,
+                      meta:
+                      [
+                        { pos: headCellPos, name: ":noCompletion" },
+                      ],
                       kind: FFun(
                         {
                           args: [],
@@ -668,6 +678,7 @@ class Importer
                           expr: macro return throw "Not implemented!",
                         }),
                     });
+                  // The getter method for Scala.
                   bridgeFields.push(
                     {
                       pos: headCellPos,
@@ -780,6 +791,7 @@ class Importer
                           meta: sourceField.meta.concat(
                             [
                               { pos: sourceField.pos, name: ":transient" },
+                              { pos: sourceField.pos, name: ":noCompletion" },
                               { pos: sourceField.pos, name: ":protected" },
                             ]),
                           kind: FVar(
@@ -797,7 +809,10 @@ class Importer
                         doc: sourceField.doc,
                         access: [ AOverride ],
                         pos: sourceField.pos,
-                        meta: sourceField.meta,
+                        meta: sourceField.meta.concat(
+                          [
+                            { pos: sourceField.pos, name: ":noCompletion" },
+                          ]),
                         kind: FFun(
                           {
                             args: [],
@@ -1006,6 +1021,7 @@ class Importer
                   meta:
                   [
                     { name: ":final", pos: pos0 },
+                    { name: ":noCompletion", pos: pos0 },
                     { name: ":protected", pos: pos0 },
                     { name: ":extern", pos: pos0 }
                   ],
