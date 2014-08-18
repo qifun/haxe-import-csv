@@ -186,7 +186,7 @@ class CsvParser
       }
       case COMMA:
       {
-        readCell;
+        READ_CELL;
       }
     }
   }
@@ -203,12 +203,12 @@ class CsvParser
       case CELL(content, positionMin, positionMax):
       {
         rowBuffer.push({ content: content, positionMin: positionMin, positionMax: positionMax });
-        readComma;
+        READ_COMMA;
       }
       case COMMA:
       {
         rowBuffer.push({ content: "", positionMin: input.position, positionMax: input.position });
-        readCell;
+        READ_CELL;
       }
       case CRLF:
       {
@@ -230,12 +230,12 @@ class CsvParser
       case CELL(content, positionMin, positionMax):
       {
         rowBuffer.push( { content: content, positionMin: positionMin, positionMax: positionMax } );
-        readComma;
+        READ_COMMA;
       }
       case COMMA:
       {
         rowBuffer.push({ content: "", positionMin: input.position, positionMax: input.position });
-        readCell;
+        READ_CELL;
       }
       case CRLF:
       {
@@ -245,14 +245,15 @@ class CsvParser
     }
   }
 
+  static var READ_CELL(default, never):RowFsm = readCell.bind();
+  static var READ_COMMA(default, never):RowFsm = readComma.bind();
+
   /**
     @throws haxe.io.Eof 什么都没读到，文件就结束了。
   **/
   static function parseRow(input:ISource):CsvRow return
   {
-
     var result = [];
-
     var tailrec:RowFsm = readFirstCell(input, result);
     while (tailrec != null)
     {
