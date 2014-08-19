@@ -125,7 +125,7 @@ class Importer
                 for (field in usingPath.pack)
                 {
                   output.writeString(field);
-                  output.writeString(",");
+                  output.writeString(".");
                 }
                 output.writeString(usingPath.name);
                 if (usingPath.sub != null)
@@ -133,6 +133,7 @@ class Importer
                   output.writeString(".");
                   output.writeString(usingPath.sub);
                 }
+                output.writeString(";\n");
               }
               #end
             }
