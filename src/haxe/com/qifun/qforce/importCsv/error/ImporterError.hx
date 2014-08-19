@@ -37,7 +37,10 @@ class ImporterError
 
   public var message(get, never):String;
 
+  @:noCompletion
   function get_message() return "Import parsed CSV failed";
+
+  public function toString() return '$file:$min-$max:$message';
 
 }
 
