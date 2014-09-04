@@ -3,3 +3,4 @@ target/
 .*
 *.gbk.csv
 ~$*.*
+/save-gbk-to-utf-8-csv.xla.whitelist.txt
