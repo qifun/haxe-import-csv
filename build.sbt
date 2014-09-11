@@ -8,11 +8,15 @@ haxeJavaSettings
 
 haxeCSharpSettings
 
-haxeOptions ++= Seq("-lib", "continuation")
-
-haxeOptions ++= Seq("-lib", "haxeparser")
-
-haxeOptions ++= Seq("-lib", "hxparse")
+for {
+  c <- Seq(Compile, Test, CSharp, TestCSharp)
+} yield {
+  haxeOptions in c ++=
+    Seq(
+      "-lib", "continuation",
+      "-lib", "haxeparser",
+      "-lib", "hxparse")
+}
 
 doxPlatforms := Seq("java", "cs", "neko")
 
