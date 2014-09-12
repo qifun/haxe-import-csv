@@ -36,7 +36,7 @@ import haxe.macro.*;
 import haxe.zip.Uncompress;
 using StringTools;
 using Lambda;
-using com.qifun.locale.Translator;
+using com.qifun.util.locale.Translator;
 
 typedef Worksheet =
 {

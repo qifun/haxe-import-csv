@@ -19,7 +19,7 @@
 
 package com.qifun.qforce.importCsv.error ;
 
-import com.qifun.locale.Translator;
+import com.qifun.util.locale.Translator;
 
 class CsvParserError
 {
