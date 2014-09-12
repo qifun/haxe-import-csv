@@ -9,7 +9,10 @@ Foo2,var bar:Bar = null; var b:Int = 35;,,,"""b的值是""+b",,xx=$xx
 Foo3,,,,,,
 Foo4,,,,,,
 Foo5,,,,,,
-Foo6,,,,,,
+Foo6,,"switch (None) {
+case None: 1;
+case Some(v): 2;
+}",,,,
 Foo7,,,,,,
 Foo8,,,,,,
 Foo9,,,,,,

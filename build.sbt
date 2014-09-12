@@ -15,12 +15,13 @@ for {
     Seq(
       "-lib", "continuation",
       "-lib", "haxeparser",
-      "-lib", "hxparse")
+      "-lib", "hxparse",
+      "-D", "using_worksheet")
 }
 
 haxeOptions in Test ++= Seq("--macro", "com.qifun.util.locale.Translator.addTranslationFile('zh_CN.GBK','com/qifun/qforce/importCsv/translation.zh_CN.GBK.json')")
 
-haxeOptions in Test ++= Seq("--macro", "com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Foo.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv'])")
+haxeOptions in Test ++= Seq("--macro", "com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Foo.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.import.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.using.utf-8.csv'])")
 
 haxeOptions in Test ++= Seq("-main", "com.qifun.qforce.importCsv.ImporterTest")
 
