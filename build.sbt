@@ -46,4 +46,40 @@ sourceGenerators in TestHaxe <+= Def.task {
 
 libraryDependencies += "com.qifun" % "haxe-util" % "0.1.1" % HaxeJava classifier("haxe-java")
 
+crossScalaVersions := Seq("2.11.2")
+
+homepage := Some(url(s"https://github.com/qifun/${name.value}"))
+
+startYear := Some(2014)
+
+licenses := Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html"))
+
+publishTo <<= (isSnapshot) { isSnapshot: Boolean =>
+  if (isSnapshot)
+    Some("snapshots" at "https://oss.sonatype.org/content/repositories/snapshots")
+  else
+    Some("releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
+}
+
+scmInfo := Some(ScmInfo(
+  url(s"https://github.com/qifun/${name.value}"),
+  s"scm:git:git://github.com/qifun/${name.value}.git",
+  Some(s"scm:git:git@github.com:qifun/${name.value}.git")))
+
+pomExtra :=
+  <developers>
+    <developer>
+      <id>Atry</id>
+      <name>杨博 (Yang Bo)</name>
+      <timezone>+8</timezone>
+      <email>pop.atry@gmail.com</email>
+    </developer>
+    <developer>
+      <id>zxiy</id>
+      <name>张修羽 (Zhang Xiuyu)</name>
+      <timezone>+8</timezone>
+      <email>95850845@qq.com</email>
+    </developer>
+  </developers>
+
 // vim: sts=2 sw=2 et
