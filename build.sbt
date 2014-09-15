@@ -18,7 +18,9 @@ for {
       "-lib", "hxparse")
 }
 
-doxPlatforms := Seq("java", "cs", "neko")
+for (c <- Seq(CSharp, TestCSharp)) yield {
+  haxeOptions in c ++= Seq("-D", "dll")
+}
 
 sourceGenerators in TestHaxe <+= Def.task {
   val xlsxBase = (sourceDirectory in TestHaxe).value
