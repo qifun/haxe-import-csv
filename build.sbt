@@ -29,8 +29,6 @@ haxeOptions in Test ++= Seq("--macro", "com.qifun.qforce.importCsv.Importer.impo
 
 haxeOptions in Test ++= Seq("-main", "com.qifun.qforce.importCsv.ImporterTest")
 
-doxPlatforms := Seq("java", "cs", "neko")
-
 sourceGenerators in TestHaxe <+= Def.task {
   val xlsxBase = (sourceDirectory in TestHaxe).value
   val unzippedBase = (sourceManaged in TestHaxe).value
