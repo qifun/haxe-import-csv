@@ -252,6 +252,15 @@ class ImportedRowBuilder
 
     var equalsExpr = macro function(other:Dynamic):Bool return
     {
+      switch(Type.typeof(other)) 
+      {
+        case TClass(c):
+        {
+          if (c != $classPathExpr)
+            return false;
+        }
+        default:throw "Unreachable code!";
+      }
       var o = Std.instance((other), $classPathExpr);
       if (o == null)
       {
