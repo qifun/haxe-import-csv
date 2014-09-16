@@ -410,11 +410,11 @@ class Importer
 
   static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
-  static var IMPORT_EREG(default, never) = ~/^(﻿)?\s*(([a-zA-Z0-9_]+|\s*\.\s*)+)((\.\s*\*\s*)|\s+in\s+([a-zA-Z0-9_]*)\s*)?\s*$/;
+  static var IMPORT_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-zA-Z0-9_]+|[\t\n\r ]*\.[\t\n\r ]*)+)((\.[\t\n\r ]*\*[\t\n\r ]*)|[\t\n\r ]+in[\t\n\r ]+([a-zA-Z0-9_]*)[\t\n\r ]*)?[\t\n\r ]*$/;
 
-  static var USING_EREG(default, never) = ~/^(﻿)?\s*(([a-z][a-zA-Z0-9_]*(\s*\.\s*[a-z][a-zA-Z0-9_]*)*)\s*\.)?\s*([A-Z][a-zA-Z0-9_]*)\s*(\.\s*([A-Z][a-zA-Z0-9_]*))?\s*$/;
+  static var USING_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-z][a-zA-Z0-9_]*([\t\n\r ]*\.[\t\n\r ]*[a-z][a-zA-Z0-9_]*)*)[\t\n\r ]*\.)?[\t\n\r ]*([A-Z][a-zA-Z0-9_]*)[\t\n\r ]*(\.[\t\n\r ]*([A-Z][a-zA-Z0-9_]*))?[\t\n\r ]*$/;
 
-  static var DOT_EREG(default, never) = ~/\s*\.\s*/g;
+  static var DOT_EREG(default, never) = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
 
   public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>):Iterable<
     {
