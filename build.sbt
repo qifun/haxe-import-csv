@@ -4,6 +4,8 @@ name := "haxe-import-csv"
 
 version := "0.1.1-SNAPSHOT"
 
+haxeSettings
+
 haxeJavaSettings
 
 haxeCSharpSettings
