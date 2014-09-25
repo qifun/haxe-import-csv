@@ -57,7 +57,7 @@ private interface IHaxeParser
 }
 
 @:final
-private class Define
+class ParserDefine
 {
 
   public var flag(default, null):String;
@@ -76,9 +76,9 @@ private class Define
 @:final
 private class SimnParser implements IHaxeParser
 {
-  var defines:Vector<Define>;
+  var defines:Vector<ParserDefine>;
 
-  public function new(defines:Vector<Define>)
+  public function new(defines:Vector<ParserDefine>)
   {
     this.defines = defines;
   }
@@ -143,13 +143,13 @@ class Importer
     baseCsvPath:String,
     csvFilePaths:Iterable<String>,
     generateTo:String
-    #if (!macro) , ?defines:Vector<Define> #end
+    #if (!macro) , ?defines:Vector<ParserDefine> #end
     ):Array<String> return
   {
     #if (!macro)
     if (defines == null)
     {
-      defines = new Vector<Define>(0);
+      defines = new Vector<ParserDefine>(0);
     }
     #end
     var csvEntries =
