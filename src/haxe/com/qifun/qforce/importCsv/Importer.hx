@@ -56,6 +56,7 @@ private interface IHaxeParser
 
 }
 
+@:nativeGen
 @:final
 class ParserDefine
 {
