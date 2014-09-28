@@ -36,7 +36,7 @@ import haxe.macro.*;
 import haxe.zip.Uncompress;
 using StringTools;
 using Lambda;
-using com.qifun.locale.Translator;
+using com.qifun.util.locale.Translator;
 
 typedef Worksheet =
 {
@@ -46,6 +46,86 @@ typedef Worksheet =
   var worksheetName(default, never):String;
   var data(default, never):CsvParser.CsvTable;
 }
+
+private interface IHaxeParser
+{
+
+  function parseInlineHaxe(code:String, position:Position):Expr;
+
+  function parseHaxe(code:String, position:Position):Expr;
+
+}
+
+@:nativeGen
+@:final
+class ParserDefine
+{
+
+  public var flag(default, null):String;
+
+  public var value(default, null):Null<String>;
+
+  public function new(flag:String, ?value:String)
+  {
+    this.flag = flag;
+    this.value = value;
+  }
+
+}
+
+#if (!macro)
+@:final
+private class SimnParser implements IHaxeParser
+{
+  var defines:Vector<ParserDefine>;
+
+  public function new(defines:Vector<ParserDefine>)
+  {
+    this.defines = defines;
+  }
+
+  function parse(code:String, position:Position):Expr return
+  {
+    var p = PositionTools.getInfos(position);
+    var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
+    for (d in defines)
+    {
+      parser.define(d.flag, d.value);
+    }
+    parser.expr();
+  }
+
+  public function parseInlineHaxe(code:String, position:Position):Expr return
+  {
+    parse(code, position);
+  }
+
+  public function parseHaxe(code:String, position:Position):Expr return
+  {
+    parse(code, position);
+  }
+
+}
+#end
+
+#if macro
+@:final
+private class MacroParser implements IHaxeParser
+{
+  public function new() { }
+
+  public function parseInlineHaxe(code:String, position:Position):Expr return
+  {
+    Context.parseInlineString(code, position);
+  }
+
+  public function parseHaxe(code:String, position:Position):Expr return
+  {
+    Context.parse(code, position);
+  }
+
+}
+#end
 
 @:final
 class Importer
@@ -60,8 +140,19 @@ class Importer
   #if sys
   static var DOT_SEPERATOR_EREG(default, never) = ~/[\.]/g;
 
-  public static function generateSources(baseCsvPath:String, csvFilePaths:Iterable<String>, generateTo:String):Array<String> return
+  public static function generateSources(
+    baseCsvPath:String,
+    csvFilePaths:Iterable<String>,
+    generateTo:String
+    #if (!macro) , ?defines:Vector<ParserDefine> #end
+    ):Array<String> return
   {
+    #if (!macro)
+    if (defines == null)
+    {
+      defines = new Vector<ParserDefine>(0);
+    }
+    #end
     var csvEntries =
     [
       for (csvFilePath in csvFilePaths)
@@ -69,7 +160,7 @@ class Importer
         readWorksheet(csvFilePath, '$baseCsvPath/$csvFilePath');
       }
     ];
-    var moduleDefinitions = buildModuleDefinitions(csvEntries);
+    var moduleDefinitions = buildModuleDefinitions(csvEntries, #if macro new MacroParser() #else new SimnParser(defines) #end);
     [
       for (moduleDefinition in moduleDefinitions)
       {
@@ -214,7 +305,7 @@ class Importer
           readWorksheet(csvFilePath, Context.resolvePath(csvFilePath));
         }
       ];
-      buildModuleDefinitions(csvEntries);
+      buildModuleDefinitions(csvEntries, new MacroParser());
     }
     catch (e:ImporterError)
     {
@@ -238,146 +329,162 @@ class Importer
     }
   }
 
-  static function parseInlineHaxe(code:String, position:Position):Expr return
-  {
-    #if macro
-      Context.parseInlineString(code, position);
-    #else
-      var p = PositionTools.getInfos(position);
-      var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
-      parser.expr();
-    #end
-  }
+  static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
 
-  static function parseHaxe(code:String, position:Position):Expr return
-  {
-    #if macro
-      Context.parse(code, position);
-    #else
-      var p = PositionTools.getInfos(position);
-      var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
-      parser.expr();
-    #end
-  }
+  static var IMPORT_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-zA-Z0-9_]+|[\t\n\r ]*\.[\t\n\r ]*)+)((\.[\t\n\r ]*\*[\t\n\r ]*)|[\t\n\r ]+in[\t\n\r ]+([a-zA-Z0-9_]*)[\t\n\r ]*)?[\t\n\r ]*$/;
 
-  static function parseParameters(
-    content:String,
-    fileName:String,
-    positionMin:Int,
-    positionMax:Int):Array<Field> return
-  {
-    var expr = parseHaxe('var _:{$content\n}', PositionTools.make(
-      {
-        min: positionMin,
-        max: positionMax,
-        file: fileName,
-      }));
-    switch (expr)
+  static var USING_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-z][a-zA-Z0-9_]*([\t\n\r ]*\.[\t\n\r ]*[a-z][a-zA-Z0-9_]*)*)[\t\n\r ]*\.)?[\t\n\r ]*([A-Z][a-zA-Z0-9_]*)[\t\n\r ]*(\.[\t\n\r ]*([A-Z][a-zA-Z0-9_]*))?[\t\n\r ]*$/;
+
+  static var DOT_EREG(default, never) = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
+
+  public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>, parser:IHaxeParser):Iterable<
     {
-      case
+      var modulePath(default, never):String;
+      var types(default, never):Array<TypeDefinition>;
+      #if using_worksheet
+      var imports(default, never):Array<ImportExpr>;
+      var usings(default, never):Array<TypePath>;
+      #end
+    }> return
+  {
+
+    function parseParameters(
+      content:String,
+      fileName:String,
+      positionMin:Int,
+      positionMax:Int):Array<Field> return
+    {
+      var expr = parser.parseHaxe('var _:{$content\n}', PositionTools.make(
+        {
+          min: positionMin,
+          max: positionMax,
+          file: fileName,
+        }));
+      switch (expr)
       {
-        pos: _,
-        expr: EVars(
-          [
-            {
-              name: "_",
-              expr: null,
-              type: TAnonymous(fields),
-            }
-          ]),
-      }:
-      {
-        fields;
-      }
-      case { pos: PositionTools.getInfos(_) => p } :
-      {
-        throw new ExpectVar(
-          Std.int(Math.max(p.min, positionMin)),
-          Std.int(Math.min(p.max, positionMax)),
-          fileName);
+        case
+        {
+          pos: _,
+          expr: EVars(
+            [
+              {
+                name: "_",
+                expr: null,
+                type: TAnonymous(fields),
+              }
+            ]),
+        }:
+        {
+          fields;
+        }
+        case { pos: PositionTools.getInfos(_) => p } :
+        {
+          throw new ExpectVar(
+            Std.int(Math.max(p.min, positionMin)),
+            Std.int(Math.min(p.max, positionMax)),
+            fileName);
+        }
       }
     }
-  }
 
-  static function parseHead(
-    content:String,
-    fileName:String,
-    positionMin:Int,
-    positionMax:Int):Field return
-  {
-    var expr = parseHaxe('var _:{$content\n}', PositionTools.make(
-      {
-        min: positionMin,
-        max: positionMax,
-        file: fileName,
-      }));
-    switch (expr)
+    function parseHead(
+      content:String,
+      fileName:String,
+      positionMin:Int,
+      positionMax:Int):Field return
     {
-      case
+      var expr = parser.parseHaxe('var _:{$content\n}', PositionTools.make(
+        {
+          min: positionMin,
+          max: positionMax,
+          file: fileName,
+        }));
+      switch (expr)
       {
-        pos: _,
-        expr: EVars(
-          [
-            {
-              name: "_",
-              expr: null,
-              type: TAnonymous([ ]),
-            }
-          ]),
-      }:
-      {
-        null;
-      }
-      case
-      {
-        pos: _,
-        expr: EVars(
-          [
-            {
-              name: "_",
-              expr: null,
-              type: TAnonymous([ field ]),
-            }
-          ])
-      }:
-      {
-        field;
-      }
-      case { pos: PositionTools.getInfos(_) => p } :
-      {
-        throw new ExpectField(
-          Std.int(Math.max(p.min, positionMin)),
-          Std.int(Math.min(p.max, positionMax)),
-          fileName);
+        case
+        {
+          pos: _,
+          expr: EVars(
+            [
+              {
+                name: "_",
+                expr: null,
+                type: TAnonymous([ ]),
+              }
+            ]),
+        }:
+        {
+          null;
+        }
+        case
+        {
+          pos: _,
+          expr: EVars(
+            [
+              {
+                name: "_",
+                expr: null,
+                type: TAnonymous([ field ]),
+              }
+            ])
+        }:
+        {
+          field;
+        }
+        case { pos: PositionTools.getInfos(_) => p } :
+        {
+          throw new ExpectField(
+            Std.int(Math.max(p.min, positionMin)),
+            Std.int(Math.min(p.max, positionMax)),
+            fileName);
+        }
       }
     }
-  }
 
-  static function parseRowId(
-    content:String,
-    fileName:String,
-    positionMin:Int,
-    positionMax:Int,
-    classMeta:Metadata):Null<String> return
-  {
-    var expr0 = parseInlineHaxe('$content\n-_', PositionTools.make(
-      {
-        min: positionMin,
-        max: positionMax,
-        file: fileName,
-      }));
-    function extractRowId(expr0:Expr):String return
+    function parseRowId(
+      content:String,
+      fileName:String,
+      positionMin:Int,
+      positionMax:Int,
+      classMeta:Metadata):Null<String> return
     {
+      var expr0 = parser.parseInlineHaxe('$content\n-_', PositionTools.make(
+        {
+          min: positionMin,
+          max: positionMax,
+          file: fileName,
+        }));
+      function extractRowId(expr0:Expr):String return
+      {
+        switch (expr0)
+        {
+          case { pos: _, expr: EConst(CIdent(name)) }:
+          {
+            name;
+          }
+          case { pos: _, expr: EMeta(s, e) } :
+          {
+            classMeta.push(s);
+            extractRowId(e);
+          }
+          case { pos: PositionTools.getInfos(_) => p } :
+          {
+            throw new ExpectMetaOrRowId(
+              Std.int(Math.max(p.min, positionMin)),
+              Std.int(Math.min(p.max, positionMax)),
+              fileName);
+          }
+        }
+      }
       switch (expr0)
       {
-        case { pos: _, expr: EConst(CIdent(name)) }:
+        case { pos: _, expr: EBinop(Binop.OpSub, idOrMeta, { pos: _, expr: EConst(CIdent("_")) } ) }:
         {
-          name;
+          extractRowId(idOrMeta);
         }
-        case { pos: _, expr: EMeta(s, e) } :
+        case { pos: _, expr: EUnop(Unop.OpNeg, false, { pos: _, expr: EConst(CIdent("_")) } ) }:
         {
-          classMeta.push(s);
-          extractRowId(e);
+          null;
         }
         case { pos: PositionTools.getInfos(_) => p } :
         {
@@ -388,64 +495,6 @@ class Importer
         }
       }
     }
-    switch (expr0)
-    {
-      case { pos: _, expr: EBinop(Binop.OpSub, idOrMeta, { pos: _, expr: EConst(CIdent("_")) } ) }:
-      {
-        extractRowId(idOrMeta);
-      }
-      case { pos: _, expr: EUnop(Unop.OpNeg, false, { pos: _, expr: EConst(CIdent("_")) } ) }:
-      {
-        null;
-      }
-      case { pos: PositionTools.getInfos(_) => p } :
-      {
-        throw new ExpectMetaOrRowId(
-          Std.int(Math.max(p.min, positionMin)),
-          Std.int(Math.min(p.max, positionMax)),
-          fileName);
-      }
-    }
-  }
-
-  static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
-
-  static var IMPORT_EREG(default, never) =
-    if ("永".length == 1)
-    {
-      // The native string is UTF-16
-      ~/^(\xEF\xBB\xBF|\uFEFF)?\s*(([a-zA-Z0-9_]+|\s*\.\s*)+)((\.\s*\*\s*)|\s+in\s+([a-zA-Z0-9_]*)\s*)?\s*$/;
-    }
-    else
-    {
-      // The native string is UTF-8
-      ~/^(\xEF\xBB\xBF)?\s*(([a-zA-Z0-9_]+|\s*\.\s*)+)((\.\s*\*\s*)|\s+in\s+([a-zA-Z0-9_]*)\s*)?\s*$/;
-    }
-
-  static var USING_EREG(default, never) =
-    if ("永".length == 1)
-    {
-      // The native string is UTF-16
-      ~/^(\xEF\xBB\xBF|\uFEFF)?\s*(([a-z][a-zA-Z0-9_]*(\s*\.\s*[a-z][a-zA-Z0-9_]*)*)\s*\.)?\s*([A-Z][a-zA-Z0-9_]*)\s*(\.\s*([A-Z][a-zA-Z0-9_]*))?\s*$/;
-    }
-    else
-    {
-      // The native string is UTF-8
-      ~/^(\xEF\xBB\xBF)?\s*(([a-z][a-zA-Z0-9_]*(\s*\.\s*[a-z][a-zA-Z0-9_]*)*)\s*\.)?\s*([A-Z][a-zA-Z0-9_]*)\s*(\.\s*([A-Z][a-zA-Z0-9_]*))?\s*$/;
-    }
-
-  static var DOT_EREG(default, never) = ~/\s*\.\s*/g;
-
-  public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>):Iterable<
-    {
-      var modulePath(default, never):String;
-      var types(default, never):Array<TypeDefinition>;
-      #if using_worksheet
-      var imports(default, never):Array<ImportExpr>;
-      var usings(default, never):Array<TypePath>;
-      #end
-    }> return
-  {
     var mainClassFieldsByModule = new StringMap<Array<Field>>();
     var baseRowFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
@@ -1247,13 +1296,7 @@ class ImporterRuntime
         {
           case { pos: pos, expr: EConst(CString(code)) }:
           {
-            #if macro
-              Context.parse(code+"\n", pos);
-            #else
-              var p = PositionTools.getInfos(pos);
-              var parser = new haxeparser.HaxeParser(byte.ByteData.ofString(code), p.file);
-              parser.expr();
-            #end
+            Context.parse(code + "\n", pos);
           }
           case { pos: pos } :
           {

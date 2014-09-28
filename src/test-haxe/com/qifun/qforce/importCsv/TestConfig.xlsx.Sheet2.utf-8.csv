@@ -1,4 +1,4 @@
 ﻿,,var aaa:Int;,function bbb(bar:Int):Int;,var ttt:String;,s3:Sheet3,s1:Foo
 Bar,"i:Int,?foo3:Foo3",bbb(1),3,"""中文""",,Foo2()
 Sheet2,?x:Int,x*2-3,Bar(3).bbb(5),,null,Foo
-Bar4,"i:Int,?foo3:Foo3",,,,,Foo3
+Bar4,"i:Int,?foo3:Foo3",,"ttt.startsWith("""")?1:2",,,Foo3

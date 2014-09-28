@@ -27,7 +27,7 @@
     <option noInlineOnDebug="False" />
     <option mainClass="com.qifun.qforce.importCsv.ImporterTest" />
     <option enabledebug="False" />
-    <option additional="--macro &quot;com.qifun.locale.Translator.addTranslationFile('zh_CN.GBK','com/qifun/qforce/importCsv/translation.zh_CN.GBK.json')&quot;&#xA;--macro com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Foo.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv'])&#xA;com.qifun.qforce.importCsv.Importer" />
+    <option additional="--macro &quot;com.qifun.locale.Translator.addTranslationFile('zh_CN.GBK','com/qifun/qforce/importCsv/translation.zh_CN.GBK.json')&quot;&#xA;com.qifun.qforce.importCsv.Importer.importCsv(['com/qifun/qforce/importCsv/TestConfig.xlsx.Foo.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet2.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.Sheet3.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.import.utf-8.csv','com/qifun/qforce/importCsv/TestConfig.xlsx.using.utf-8.csv'])&#xA;com.qifun.qforce.importCsv.Importer" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>

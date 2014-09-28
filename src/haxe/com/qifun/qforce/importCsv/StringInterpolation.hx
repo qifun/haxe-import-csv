@@ -19,7 +19,7 @@
 
 package com.qifun.qforce.importCsv;
 
-import com.qifun.locale.Translator;
+import com.qifun.util.locale.Translator;
 import haxe.macro.*;
 
 @:parseCellFunction(com.qifun.qforce.importCsv.StringInterpolation.StringInterpolationCellParser.parseCell)
