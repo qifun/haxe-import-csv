@@ -17,42 +17,20 @@
  * limitations under the License.
  */
 
-package com.qifun.qforce.importCsv.error ;
+package com.qifun.importCsv;
 
 import com.qifun.util.locale.Translator;
+import haxe.macro.*;
 
-class CsvParserError
+@:parseCellFunction(com.qifun.importCsv.StringInterpolation.StringInterpolationCellParser.parseCell)
+typedef StringLiteral = String;
+
+@:dox(hide)
+class StringLiteralCellParser
 {
 
-  @:allow(com.qifun.qforce.importCsv.CsvParser)
-  function new(positionMin:Int, positionMax:Int)
-  {
-    this.positionMin = positionMin;
-    this.positionMax = positionMax;
-  }
-
-  public var positionMin(default, null):Int;
-
-  public var positionMax(default, null):Int;
-
-  public var message(get, never):String;
-
-  function get_message() return "CSV parser error";
+  @:noUsing
+  macro public static function parseCell(cellContent:ExprOf<String>):Expr return cellContent;
 
 }
 
-@:final
-class UnexpectedEof extends CsvParserError
-{
-
-  override function get_message() return "Unexpected <end of file>";
-
-}
-
-@:final
-class UnexpectedCell extends CsvParserError
-{
-
-  override function get_message() return "Expected CRLF or \",\"";
-
-}

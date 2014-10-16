@@ -17,9 +17,9 @@
  * limitations under the License.
  */
 
-package com.qifun.qforce.importCsv;
+package com.qifun.importCsv;
 
-import com.qifun.qforce.importCsv.error.CsvParserError;
+import com.qifun.importCsv.error.CsvParserError;
 import haxe.io.BytesOutput;
 import haxe.io.Eof;
 import haxe.io.Input;

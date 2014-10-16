@@ -17,12 +17,12 @@
  * limitations under the License.
  */
 
-package com.qifun.qforce.importCsv;
+package com.qifun.importCsv;
 
 import com.dongxiguo.continuation.Continuation;
 import com.dongxiguo.continuation.utils.Generator;
-import com.qifun.qforce.importCsv.CsvParser;
-import com.qifun.qforce.importCsv.error.ImporterError;
+import com.qifun.importCsv.CsvParser;
+import com.qifun.importCsv.error.ImporterError;
 import haxe.ds.StringMap;
 import haxe.ds.Vector;
 import haxe.io.Bytes;
@@ -133,7 +133,7 @@ class Importer
 
   static var IMPORTED_ROW_TYPE_PATH(default, never):TypePath =
   {
-    pack: [ "com", "qifun", "qforce", "importCsv" ],
+    pack: [ "com", "qifun", "importCsv" ],
     name: "ImportedRow",
   }
 
@@ -291,7 +291,7 @@ class Importer
 
     用法：
     `
-    haxe --macro "com.qifun.qforce.importCsv.Importer.importCsvFile(['myPackage/ModuleName.xlsx.ClassName1.utf-8.csv','myPackage/ModuleName.xlsx.ClassName2.utf-8.csv'])"
+    haxe --macro "com.qifun.importCsv.Importer.importCsvFile(['myPackage/ModuleName.xlsx.ClassName1.utf-8.csv','myPackage/ModuleName.xlsx.ClassName2.utf-8.csv'])"
     `
   **/
   macro public static function importCsv(csvFilePaths:Iterable<String>):Void
@@ -790,7 +790,7 @@ class Importer
                       expr: EConst(CString(fieldBody)),
                       pos: getPosition(cell),
                     };
-                    macro com.qifun.qforce.importCsv.Importer.ImporterRuntime.parseCell($cellContentExpr);
+                    macro com.qifun.importCsv.Importer.ImporterRuntime.parseCell($cellContentExpr);
                   }
                 }
                 var newAccess = switch (sourceField.access)
