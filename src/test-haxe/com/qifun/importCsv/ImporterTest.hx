@@ -1,4 +1,4 @@
-package com.qifun.qforce.importCsv;
+package com.qifun.importCsv;
 
 
 class ImporterTest

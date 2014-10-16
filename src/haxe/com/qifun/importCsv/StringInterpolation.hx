@@ -17,12 +17,12 @@
  * limitations under the License.
  */
 
-package com.qifun.qforce.importCsv;
+package com.qifun.importCsv;
 
 import com.qifun.util.locale.Translator;
 import haxe.macro.*;
 
-@:parseCellFunction(com.qifun.qforce.importCsv.StringInterpolation.StringInterpolationCellParser.parseCell)
+@:parseCellFunction(com.qifun.importCsv.StringInterpolation.StringInterpolationCellParser.parseCell)
 typedef StringInterpolation = String;
 
 @:dox(hide)

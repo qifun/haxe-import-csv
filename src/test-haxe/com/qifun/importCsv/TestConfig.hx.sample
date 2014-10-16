@@ -1,4 +1,4 @@
-package com.qifun.qforce.importCsv;
+package com.qifun.importCsv;
 
 class TestConfig
 {
@@ -10,7 +10,7 @@ class TestConfig
 
 }
 
-@:allow(com.qifun.qforce.importCsv.TestConfig)
+@:allow(com.qifun.importCsv.TestConfig)
 private class TestConfig_Item
 {
   function new() { }
@@ -39,7 +39,7 @@ class Sheet1 extends TestConfig_Item
 }
 
 
-@:allow(com.qifun.qforce.importCsv.TestConfig)
+@:allow(com.qifun.importCsv.TestConfig)
 class Foo extends Sheet1
 {
 
@@ -52,7 +52,7 @@ class Foo extends Sheet1
 }
 
 
-@:allow(com.qifun.qforce.importCsv.TestConfig)
+@:allow(com.qifun.importCsv.TestConfig)
 class Bar extends Sheet1
 {
 

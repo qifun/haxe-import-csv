@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.qifun.qforce.importCsv.error ;
+package com.qifun.importCsv.error ;
 
 import com.qifun.util.locale.Translator;
 
@@ -27,7 +27,7 @@ class ImporterError
   public var max:Int;
   public var file:String;
 
-  @:allow(com.qifun.qforce.importCsv)
+  @:allow(com.qifun.importCsv)
   function new(min:Int, max:Int, file:String)
   {
     this.min = min;
