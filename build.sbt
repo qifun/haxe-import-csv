@@ -48,7 +48,7 @@ sourceGenerators in TestHaxe <+= Def.task {
   unzipXlsx((xlsxBase ** "*.xlsx").get.toSet).toSeq
 }
 
-libraryDependencies += "com.qifun" % "haxe-util" % "0.1.1" % "provided" classifier("haxe-java")
+libraryDependencies += "com.qifun" % "haxe-util" % "0.1.1" % HaxeJava classifier("haxe-java")
 
 crossScalaVersions := Seq("2.11.2")
 
