@@ -2,7 +2,7 @@ organization := "com.qifun"
 
 name := "haxe-import-csv"
 
-version := "0.2.0-SNAPSHOT"
+version := "0.2.0"
 
 haxeSettings
 
