@@ -182,7 +182,6 @@ class Importer
               output.writeString("package ");
               output.writeString(type.pack.join("."));
               output.writeString(";\n");
-              #if using_worksheet
               for (importExpr in moduleDefinition.imports)
               {
                 switch (importExpr.mode)
@@ -226,7 +225,6 @@ class Importer
                 }
                 output.writeString(";\n");
               }
-              #end
             }
             output.writeString(new Printer().printTypeDefinition(type, false));
             output.writeByte("\n".code);
@@ -315,17 +313,11 @@ class Importer
     for (moduleDefinition in moduleDefinitions)
     {
       //for (t in moduleDefinition.types) trace(new Printer().printTypeDefinition(t));
-      #if using_worksheet
       Context.defineModule(
         moduleDefinition.modulePath,
         moduleDefinition.types,
         moduleDefinition.imports,
         moduleDefinition.usings);
-      #else
-      Context.defineModule(
-        moduleDefinition.modulePath,
-        moduleDefinition.types);
-      #end
     }
   }
 
@@ -341,10 +333,8 @@ class Importer
     {
       var modulePath(default, never):String;
       var types(default, never):Array<TypeDefinition>;
-      #if using_worksheet
       var imports(default, never):Array<ImportExpr>;
       var usings(default, never):Array<TypePath>;
-      #end
     }> return
   {
 
@@ -498,10 +488,8 @@ class Importer
     var mainClassFieldsByModule = new StringMap<Array<Field>>();
     var baseRowFieldsByModule = new StringMap<Array<Field>>();
     var workbookModules = new StringMap<Array<TypeDefinition>>();
-    #if using_worksheet
     var workbookImports = new StringMap<Array<ImportExpr>>();
     var workbookUsings = new StringMap<Array<TypePath>>();
-    #end
     for (csvEntry in csvEntries)
     {
       var csvFileName = csvEntry.fileName;
@@ -511,7 +499,6 @@ class Importer
       var fullModuleName = module.join(".");
       switch (csvEntry.worksheetName)
       {
-        #if using_worksheet
         case "import":
         {
           var imports:Array<ImportExpr> = [];
@@ -610,7 +597,6 @@ class Importer
           workbookUsings.set(fullModuleName, usings);
           continue;
         }
-        #end
         case worksheetName:
         {
           var baseClassName = workbookName + "_Row";
@@ -1232,17 +1218,13 @@ class Importer
       for (fullModuleName in workbookModules.keys())
       {
         var workbookModule = workbookModules.get(fullModuleName);
-        #if using_worksheet
         var imports = workbookImports.get(fullModuleName);
         var usings = workbookUsings.get(fullModuleName);
-        #end
         {
           modulePath: fullModuleName,
           types: workbookModule,
-          #if using_worksheet
           imports: imports == null ? [] : imports,
           usings: usings == null ? [] : usings,
-          #end
         }
       }
     ];
