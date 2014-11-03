@@ -1239,40 +1239,7 @@ class ImporterRuntime
   {
     function parseByType(expectedType:Type):Expr return
     {
-      var baseType:BaseType = switch (expectedType)
-      {
-        case TInst(t, _): t.get();
-        case TAbstract(t, _): t.get();
-        case TType(t, _): t.get();
-        default: throw "Unreachable code!";
-      }
-      for (entry in baseType.meta.get())
-      {
-        switch (entry)
-        {
-          case { name: ":parseCellFunction", params: [ functionExpr ] } :
-          {
-            return macro $functionExpr($cellContent);
-          }
-          default:
-          {
-            continue;
-          }
-        }
-      }
-      var followable = switch (expectedType)
-      {
-        case TMono(_): true;
-        case TLazy(_): true;
-        case TType(_, _): true;
-        case TInst(_.get() => { kind: KGenericBuild }, _): true;
-        default: false;
-      }
-      if (followable)
-      {
-        parseByType(Context.follow(expectedType, true));
-      }
-      else
+      function parseDefaultCell(cellContent:ExprOf<String>):Expr return
       {
         switch (cellContent)
         {
@@ -1286,6 +1253,51 @@ class ImporterRuntime
           }
         }
       }
+      if (expectedType.match(TFun(_)))
+      {
+        parseDefaultCell(cellContent);
+      }
+      else
+      {
+        var baseType:BaseType = switch (expectedType)
+        {
+          case TInst(t, _): t.get();
+          case TAbstract(t, _): t.get();
+          case TType(t, _): t.get();
+          default: throw "Unreachable code!";
+        }
+        for (entry in baseType.meta.get())
+        {
+          switch (entry)
+          {
+            case { name: ":parseCellFunction", params: [ functionExpr ] } :
+            {
+              return macro $functionExpr($cellContent);
+            }
+            default:
+            {
+              continue;
+            }
+          }
+        }
+        var followable = switch (expectedType)
+        {
+          case TMono(_): true;
+          case TLazy(_): true;
+          case TType(_, _): true;
+          case TInst(_.get() => { kind: KGenericBuild }, _): true;
+          default: false;
+        }
+        if (followable)
+        {
+          parseByType(Context.follow(expectedType, true));
+        }
+        else
+        {
+          parseDefaultCell(cellContent);
+        }
+      }
+
     }
     parseByType(Context.getExpectedType());
   }
