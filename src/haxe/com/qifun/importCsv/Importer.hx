@@ -707,6 +707,7 @@ class Importer
                     {
                       pos: headCellPos,
                       name: getterName,
+                      access: [ APrivate ],
                       meta:
                       [
                         { pos: headCellPos, name: ":noCompletion" },
@@ -723,6 +724,7 @@ class Importer
                     {
                       pos: headCellPos,
                       name: getterName,
+                      access: [ APrivate ],
                       meta:
                       [
                         { pos: headCellPos, name: ":noCompletion" },
@@ -867,7 +869,7 @@ class Importer
                       {
                         name: 'get_$fieldName',
                         doc: sourceField.doc,
-                        access: [ AOverride ],
+                        access: [ AOverride, APrivate ],
                         pos: sourceField.pos,
                         meta: sourceField.meta.concat(
                           [
