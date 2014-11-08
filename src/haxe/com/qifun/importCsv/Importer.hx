@@ -138,7 +138,6 @@ class Importer
   }
 
   #if sys
-  static var DOT_SEPERATOR_EREG(default, never) = ~/[\.]/g;
 
   public static function generateSources(
     baseCsvPath:String,
@@ -164,7 +163,8 @@ class Importer
     [
       for (moduleDefinition in moduleDefinitions)
       {
-        var fileName = generateTo + "/" + DOT_SEPERATOR_EREG.replace(moduleDefinition.modulePath, "/") + ".hx";
+        var dotSeperatorEReg = ~/[\.]/g;
+        var fileName = generateTo + "/" + dotSeperatorEReg.replace(moduleDefinition.modulePath, "/") + ".hx";
         var parent = fileName.substring(0, fileName.lastIndexOf("/"));
         if (!sys.FileSystem.exists(parent))
         {
@@ -244,10 +244,9 @@ class Importer
 
   #if sys
 
-  static var PATH_SEPERATOR_EREG(default, never) = ~/[\/\\]/g;
-
-  static function readWorksheet(csvFilePath:String, resolvedPath:String):Worksheet return
+  public static function readWorksheet(csvFilePath:String, resolvedPath:String):Worksheet return
   {
+    var pathSeperatorEReg = ~/[\/\\]/g;
     var input = sys.io.File.read(resolvedPath);
     var data = try
     {
@@ -268,7 +267,7 @@ class Importer
     {
       workbookName: csvFileEReg.matched(2),
       worksheetName: csvFileEReg.matched(3),
-      pack: PATH_SEPERATOR_EREG.split(csvFileEReg.matched(1)),
+      pack: pathSeperatorEReg.split(csvFileEReg.matched(1)),
       fileName: resolvedPath,
       data: data,
     }
@@ -322,12 +321,6 @@ class Importer
   }
 
   static var DUMMY_FUNCTION(default, never) = Reflect.makeVarArgs(function(_) { });
-
-  static var IMPORT_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-zA-Z0-9_]+|[\t\n\r ]*\.[\t\n\r ]*)+)((\.[\t\n\r ]*\*[\t\n\r ]*)|[\t\n\r ]+in[\t\n\r ]+([a-zA-Z0-9_]*)[\t\n\r ]*)?[\t\n\r ]*$/;
-
-  static var USING_EREG(default, never) = ~/^(﻿)?[\t\n\r ]*(([a-z][a-zA-Z0-9_]*([\t\n\r ]*\.[\t\n\r ]*[a-z][a-zA-Z0-9_]*)*)[\t\n\r ]*\.)?[\t\n\r ]*([A-Z][a-zA-Z0-9_]*)[\t\n\r ]*(\.[\t\n\r ]*([A-Z][a-zA-Z0-9_]*))?[\t\n\r ]*$/;
-
-  static var DOT_EREG(default, never) = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
 
   public static function buildModuleDefinitions(csvEntries:Iterable<Worksheet>, parser:IHaxeParser):Iterable<
     {
@@ -506,6 +499,7 @@ class Importer
           {
             for (cell in row)
             {
+              var importEReg = ~/^(﻿)?[\t\n\r ]*(([a-zA-Z0-9_]+|[\t\n\r ]*\.[\t\n\r ]*)+)((\.[\t\n\r ]*\*[\t\n\r ]*)|[\t\n\r ]+in[\t\n\r ]+([a-zA-Z0-9_]*)[\t\n\r ]*)?[\t\n\r ]*$/;
               switch (cell.content)
               {
                 case null, "":
@@ -514,19 +508,20 @@ class Importer
                 }
                 case importPath:
                 {
-                  if (IMPORT_EREG.match(importPath))
+                  if (importEReg.match(importPath))
                   {
+                    var dotEReg = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
                     imports.push(
                       {
                         path:
                         [
-                          for (name in DOT_EREG.split(IMPORT_EREG.matched(2)))
+                          for (name in dotEReg.split(importEReg.matched(2)))
                           {
                             pos: PositionTools.here(),
                             name: name,
                           }
                         ],
-                        mode: switch ([IMPORT_EREG.matched(5), IMPORT_EREG.matched(6)])
+                        mode: switch ([importEReg.matched(5), importEReg.matched(6)])
                         {
                           case [ null, null ]:
                           {
@@ -565,6 +560,7 @@ class Importer
           {
             for (cell in row)
             {
+              var usingEReg = ~/^(﻿)?[\t\n\r ]*(([a-z][a-zA-Z0-9_]*([\t\n\r ]*\.[\t\n\r ]*[a-z][a-zA-Z0-9_]*)*)[\t\n\r ]*\.)?[\t\n\r ]*([A-Z][a-zA-Z0-9_]*)[\t\n\r ]*(\.[\t\n\r ]*([A-Z][a-zA-Z0-9_]*))?[\t\n\r ]*$/;
               switch (cell.content)
               {
                 case null, "":
@@ -573,17 +569,18 @@ class Importer
                 }
                 case usingPath:
                 {
-                  if (USING_EREG.match(usingPath))
+                  if (usingEReg.match(usingPath))
                   {
+                    var dotEReg = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
                     usings.push(
                       {
-                        pack: switch (USING_EREG.matched(3))
+                        pack: switch (usingEReg.matched(3))
                         {
                           case null, "": [];
-                          case path: DOT_EREG.split(path);
+                          case path: dotEReg.split(path);
                         },
-                        name: USING_EREG.matched(5),
-                        sub: USING_EREG.matched(7),
+                        name: usingEReg.matched(5),
+                        sub: usingEReg.matched(7),
                       });
                   }
                   else
@@ -707,6 +704,7 @@ class Importer
                     {
                       pos: headCellPos,
                       name: getterName,
+                      access: [ APrivate ],
                       meta:
                       [
                         { pos: headCellPos, name: ":noCompletion" },
@@ -723,6 +721,7 @@ class Importer
                     {
                       pos: headCellPos,
                       name: getterName,
+                      access: [ APrivate ],
                       meta:
                       [
                         { pos: headCellPos, name: ":noCompletion" },
@@ -867,7 +866,7 @@ class Importer
                       {
                         name: 'get_$fieldName',
                         doc: sourceField.doc,
-                        access: [ AOverride ],
+                        access: [ AOverride, APrivate ],
                         pos: sourceField.pos,
                         meta: sourceField.meta.concat(
                           [
