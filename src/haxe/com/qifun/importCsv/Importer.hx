@@ -1253,19 +1253,9 @@ class ImporterRuntime
           }
         }
       }
-      if (expectedType.match(TFun(_)))
+
+      function parseBaseType(baseType:BaseType):Expr return
       {
-        parseDefaultCell(cellContent);
-      }
-      else
-      {
-        var baseType:BaseType = switch (expectedType)
-        {
-          case TInst(t, _): t.get();
-          case TAbstract(t, _): t.get();
-          case TType(t, _): t.get();
-          default: throw "Unreachable code!";
-        }
         for (entry in baseType.meta.get())
         {
           switch (entry)
@@ -1297,7 +1287,13 @@ class ImporterRuntime
           parseDefaultCell(cellContent);
         }
       }
-
+      switch (expectedType)
+      {
+        case TInst(t, _): parseBaseType(t.get());
+        case TAbstract(t, _): parseBaseType(t.get());
+        case TType(t, _): parseBaseType(t.get());
+        default: parseDefaultCell(cellContent);
+      }
     }
     parseByType(Context.getExpectedType());
   }
