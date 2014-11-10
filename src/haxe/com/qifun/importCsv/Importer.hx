@@ -1096,7 +1096,7 @@ class Importer
                   name: rowId,
                   pos: pos0,
                   access: [ ],
-                  meta: [ ],
+                  meta: [ { name: ":dox", pos: pos0, params: [ macro show ] } ],
                   kind: FProp("get", "never", TPath(rowPath), null)
                 });
               mainClassFields.push(
@@ -1104,7 +1104,7 @@ class Importer
                   name: rowId,
                   pos: pos0,
                   access: [ AStatic, APublic ],
-                  meta: [ { name: ":final", pos: pos0 } ],
+                  meta: [ { name: ":readOnly", pos: pos0 }, { name: ":final", pos: pos0 } ],
                   kind: FProp("default", "never", null, macro new $rowPath())
                 });
             }
@@ -1117,6 +1117,7 @@ class Importer
                   access: [ AInline ],
                   meta:
                   [
+                    { name: ":dox", pos: pos0, params: [ macro show ] },
                     { name: ":final", pos: pos0 },
                     { name: ":protected", pos: pos0 },
                     { name: ":extern", pos: pos0 }
