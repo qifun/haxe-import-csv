@@ -70,7 +70,7 @@ class ImportedRowBuilder
     if (!isWorkSheetRow)
       return fields;
 
-    var toStringDefExpr = macro function():String return $ { toStringExprMaker() };
+    var toStringDefExpr = macro function():String return ${ toStringExprMaker() };
     if (Context.defined("java"))
     {
       fields.push( {
