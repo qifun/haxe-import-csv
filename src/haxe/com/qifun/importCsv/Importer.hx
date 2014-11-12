@@ -1200,6 +1200,11 @@ class Importer
               [
                 {
                   pos: headPos,
+                  name: ":dox",
+                  params: [ macro hide ],
+                },
+                {
+                  pos: headPos,
                   name: ":nativeGen",
                 }
               ],
