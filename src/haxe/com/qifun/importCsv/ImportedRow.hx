@@ -32,11 +32,13 @@ extends cs.system.Object
 #end
 {
 
+  @:dox(show)
   var y(get, never):Bool;
 
   @:protected
   inline function get_y() return true;
 
+  @:dox(show)
   var n(get, never):Bool;
 
   @:protected
@@ -68,7 +70,7 @@ class ImportedRowBuilder
     if (!isWorkSheetRow)
       return fields;
 
-    var toStringDefExpr = macro function():String return $ { toStringExprMaker() };
+    var toStringDefExpr = macro function():String return ${ toStringExprMaker() };
     if (Context.defined("java"))
     {
       fields.push( {
@@ -252,7 +254,7 @@ class ImportedRowBuilder
 
     var equalsExpr = macro function(other:Dynamic):Bool return
     {
-      switch(Type.typeof(other)) 
+      switch(Type.typeof(other))
       {
         case TClass(c):
         {
