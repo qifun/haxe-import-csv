@@ -91,7 +91,7 @@ class ImportedRowBuilder
         name: "ToString",
         doc: null,
         meta: [{ name: ":overload", pos: Context.currentPos() }],
-        access: [APublic],
+        access: [ AOverride, APublic ],
         kind: FFun(switch(toStringDefExpr.expr) {
           case EFunction(_, f):f;
           default: throw "Unreachable code!";
