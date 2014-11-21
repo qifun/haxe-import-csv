@@ -1120,7 +1120,6 @@ class Importer
                     { name: ":dox", pos: pos0, params: [ macro show ] },
                     { name: ":final", pos: pos0 },
                     { name: ":protected", pos: pos0 },
-                    { name: ":extern", pos: pos0 }
                   ],
                   kind: FFun(
                     {
