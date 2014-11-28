@@ -489,7 +489,7 @@ class Importer
       var workbookName = csvEntry.workbookName;
       var pack = csvEntry.pack;
       var module = pack.concat([ workbookName ]);
-      var fullModuleName = module.join(".");
+      var fullyModuleName = module.join(".");
       switch (csvEntry.worksheetName)
       {
         case "import":
@@ -550,7 +550,7 @@ class Importer
               }
             }
           }
-          workbookImports.set(fullModuleName, imports);
+          workbookImports.set(fullyModuleName, imports);
           continue;
         }
         case "using":
@@ -569,19 +569,10 @@ class Importer
                 }
                 case usingPath:
                 {
-                  if (usingEReg.match(usingPath))
+                  var typePath = MacroStringTools.toTypePath(usingPath);
+                  if (typePath != null)
                   {
-                    var dotEReg = ~/[\t\n\r ]*\.[\t\n\r ]*/g;
-                    usings.push(
-                      {
-                        pack: switch (usingEReg.matched(3))
-                        {
-                          case null, "": [];
-                          case path: dotEReg.split(path);
-                        },
-                        name: usingEReg.matched(5),
-                        sub: usingEReg.matched(7),
-                      });
+                    usings.push(typePath);
                   }
                   else
                   {
@@ -591,7 +582,7 @@ class Importer
               }
             }
           }
-          workbookUsings.set(fullModuleName, usings);
+          workbookUsings.set(fullyModuleName, usings);
           continue;
         }
         case worksheetName:
@@ -613,18 +604,18 @@ class Importer
           var mainClassFields:Array<Field>;
           var baseRowFields:Array<Field>;
           var workbookModule:Array<TypeDefinition>;
-          if (workbookModules.exists(fullModuleName))
+          if (workbookModules.exists(fullyModuleName))
           {
-            mainClassFields = mainClassFieldsByModule.get(fullModuleName);
-            baseRowFields = baseRowFieldsByModule.get(fullModuleName);
-            workbookModule = workbookModules.get(fullModuleName);
+            mainClassFields = mainClassFieldsByModule.get(fullyModuleName);
+            baseRowFields = baseRowFieldsByModule.get(fullyModuleName);
+            workbookModule = workbookModules.get(fullyModuleName);
           }
           else
           {
             mainClassFields = [];
-            mainClassFieldsByModule.set(fullModuleName, mainClassFields);
+            mainClassFieldsByModule.set(fullyModuleName, mainClassFields);
             baseRowFields = [];
-            baseRowFieldsByModule.set(fullModuleName, baseRowFields);
+            baseRowFieldsByModule.set(fullyModuleName, baseRowFields);
             workbookModule = [];
             workbookModule.push(
             {
@@ -661,7 +652,7 @@ class Importer
               ],
               fields: baseRowFields,
             });
-            workbookModules.set(fullModuleName, workbookModule);
+            workbookModules.set(fullyModuleName, workbookModule);
           }
 
           function getPosition(cell:CsvCell):Position return
@@ -1219,13 +1210,13 @@ class Importer
       }
     }
     [
-      for (fullModuleName in workbookModules.keys())
+      for (fullyModuleName in workbookModules.keys())
       {
-        var workbookModule = workbookModules.get(fullModuleName);
-        var imports = workbookImports.get(fullModuleName);
-        var usings = workbookUsings.get(fullModuleName);
+        var workbookModule = workbookModules.get(fullyModuleName);
+        var imports = workbookImports.get(fullyModuleName);
+        var usings = workbookUsings.get(fullyModuleName);
         {
-          modulePath: fullModuleName,
+          modulePath: fullyModuleName,
           types: workbookModule,
           imports: imports == null ? [] : imports,
           usings: usings == null ? [] : usings,
