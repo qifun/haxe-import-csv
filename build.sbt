@@ -4,12 +4,6 @@ name := "haxe-import-csv"
 
 version := "0.2.1-SNAPSHOT"
 
-haxeSettings
-
-haxeJavaSettings
-
-haxeCSharpSettings
-
 for {
   c <- Seq(Compile, Test, CSharp, TestCSharp)
 } yield {
