@@ -1,5 +1,12 @@
 language: scala
 
+env:
+  matrix:
+    # The lastest Haxe
+    - HAXE_FILE=haxe_latest.tar.gz
+    # Haxe 3.2.0
+    - HAXE_FILE=haxe_2015-05-12_master_77d171b.tar.gz
+
 scala:
   - 2.11.2
 
@@ -12,9 +19,8 @@ before_install:
  - travis_retry sudo add-apt-repository ppa:eyecreate/haxe -y
  - travis_retry sudo apt-get update -qq
  - travis_retry sudo apt-get install -qq neko ocaml mono-devel 
- - haxe_file=haxe_latest.tar.gz
- - travis_retry wget http://hxbuilds.s3-website-us-east-1.amazonaws.com/builds/haxe/linux64/$haxe_file
- - sudo tar zxvf $haxe_file
+ - travis_retry wget http://hxbuilds.s3-website-us-east-1.amazonaws.com/builds/haxe/linux64/"$HAXE_FILE"
+ - sudo tar zxvf "$HAXE_FILE"
  - sudo mv haxe-* haxe
  - export PATH=$PATH:`pwd`/haxe
  - export HAXE_STD_PATH=`pwd`/haxe/std
