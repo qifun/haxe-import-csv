@@ -29,6 +29,6 @@ before_install:
  - travis_retry haxelib install continuation
  - travis_retry haxelib install hxjava
  - travis_retry haxelib install hxcs
- - travis_retry haxelib git hxparse https://github.com/Simn/hxparse.git development
- - travis_retry haxelib git haxeparser https://github.com/Simn/haxeparser.git master
+ - travis_retry haxelib git hxparse https://github.com/Simn/hxparse.git bb0da70a409f3e29baef5f5d91d8c4a148c4df85
+ - travis_retry haxelib git haxeparser https://github.com/Simn/haxeparser.git 317838b23f2f8a54e68fe6afabc099dc914d4856
  - travis_retry haxelib git HUGS https://github.com/qifun/HUGS.git
