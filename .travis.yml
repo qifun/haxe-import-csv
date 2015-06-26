@@ -1,5 +1,12 @@
 language: scala
 
+env:
+  matrix:
+    # The lastest Haxe, disabled due to https://github.com/HaxeFoundation/haxe/issues/4369
+    # - HAXE_FILE=haxe_latest.tar.gz
+    # Haxe 3.2.0
+    - HAXE_FILE=haxe_2015-05-12_master_77d171b.tar.gz
+
 scala:
   - 2.11.2
 
@@ -12,9 +19,8 @@ before_install:
  - travis_retry sudo add-apt-repository ppa:eyecreate/haxe -y
  - travis_retry sudo apt-get update -qq
  - travis_retry sudo apt-get install -qq neko ocaml mono-devel 
- - haxe_file=haxe_latest.tar.gz
- - travis_retry wget http://hxbuilds.s3-website-us-east-1.amazonaws.com/builds/haxe/linux64/$haxe_file
- - sudo tar zxvf $haxe_file
+ - travis_retry wget http://hxbuilds.s3-website-us-east-1.amazonaws.com/builds/haxe/linux64/"$HAXE_FILE"
+ - sudo tar zxvf "$HAXE_FILE"
  - sudo mv haxe-* haxe
  - export PATH=$PATH:`pwd`/haxe
  - export HAXE_STD_PATH=`pwd`/haxe/std
@@ -23,6 +29,6 @@ before_install:
  - travis_retry haxelib install continuation
  - travis_retry haxelib install hxjava
  - travis_retry haxelib install hxcs
- - travis_retry haxelib git hxparse https://github.com/Simn/hxparse.git development src
- - travis_retry haxelib git haxeparser https://github.com/qifun/haxeparser.git qifun src
+ - travis_retry haxelib git hxparse https://github.com/Simn/hxparse.git bb0da70a409f3e29baef5f5d91d8c4a148c4df85
+ - travis_retry haxelib git haxeparser https://github.com/Simn/haxeparser.git 317838b23f2f8a54e68fe6afabc099dc914d4856
  - travis_retry haxelib git HUGS https://github.com/qifun/HUGS.git

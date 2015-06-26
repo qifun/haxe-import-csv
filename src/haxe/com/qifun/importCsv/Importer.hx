@@ -823,6 +823,11 @@ class Importer
                     var p = PositionTools.getInfos(pos);
                     throw new UnexpectedFunctionBody(p.min, p.max, p.file);
                   }
+                  case FFun( { expr: null } ):
+                  {
+                    var p = PositionTools.getInfos(sourceField.pos);
+                    throw new UnexpectedFunctionBody(p.min, p.max, p.file);
+                  }
                   case FVar(t, null):
                   {
                     var fieldName = sourceField.name;
